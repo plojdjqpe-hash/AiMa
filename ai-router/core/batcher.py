@@ -29,10 +29,14 @@ class BatchQueue:
                 return ""
 
             batch_prompt = "\n\n---\n\n".join(self._queue)
-            self._queue.clear()
 
         logger.info("Flushing batch of merged requests")
-        return llm.fallback_call(batch_prompt)
+        result = llm.fallback_call(batch_prompt)
+
+        with self._lock:
+            self._queue.clear()
+
+        return result
 
     @property
     def size(self) -> int:
