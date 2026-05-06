@@ -69,7 +69,23 @@ CREATE TABLE IF NOT EXISTS incidents (
 );
 CREATE INDEX IF NOT EXISTS incidents_open
     ON incidents(last_seen_at);
+
+CREATE TABLE IF NOT EXISTS learned_rules (
+    -- asn=-1 means "global / unspecified"; otherwise actual ASN integer.
+    asn INTEGER NOT NULL DEFAULT -1,
+    block_type TEXT NOT NULL,
+    recipe_id TEXT NOT NULL,
+    success_count INTEGER NOT NULL DEFAULT 0,
+    failure_count INTEGER NOT NULL DEFAULT 0,
+    last_outcome_at TEXT NOT NULL,
+    last_note TEXT,
+    PRIMARY KEY (asn, block_type, recipe_id)
+);
+CREATE INDEX IF NOT EXISTS learned_rules_lookup
+    ON learned_rules(block_type, asn);
 """
+
+_GLOBAL_ASN = -1
 
 
 class Store:
@@ -241,6 +257,64 @@ class Store:
                     json.dumps(inc.suggested_recipes),
                 ),
             )
+
+    # ─── Learned rules (per-ASN recipe success bookkeeping) ───────────────
+
+    def record_recipe_outcome(
+        self,
+        *,
+        asn: int | None,
+        block_type: BlockType,
+        recipe_id: str,
+        success: bool,
+        note: str = "",
+    ) -> None:
+        asn_key = _GLOBAL_ASN if asn is None else int(asn)
+        with self.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO learned_rules
+                    (asn, block_type, recipe_id, success_count, failure_count,
+                     last_outcome_at, last_note)
+                VALUES(?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(asn, block_type, recipe_id) DO UPDATE SET
+                    success_count = learned_rules.success_count + excluded.success_count,
+                    failure_count = learned_rules.failure_count + excluded.failure_count,
+                    last_outcome_at = excluded.last_outcome_at,
+                    last_note = excluded.last_note
+                """,
+                (
+                    asn_key,
+                    block_type.value,
+                    recipe_id,
+                    1 if success else 0,
+                    0 if success else 1,
+                    datetime.now(UTC).isoformat(),
+                    note,
+                ),
+            )
+
+    def learned_priority_map(self) -> dict[tuple[int | None, BlockType, str], float]:
+        """Returns score for each (asn, block_type, recipe) row.
+
+        score = (success - failure) / (success + failure)  ∈ [-1..1]
+        Higher = more preferred. Rows with no outcomes are omitted.
+        """
+
+        out: dict[tuple[int | None, BlockType, str], float] = {}
+        with self.cursor() as cur:
+            rows = cur.execute(
+                "SELECT asn, block_type, recipe_id, success_count, failure_count "
+                "FROM learned_rules"
+            ).fetchall()
+        for r in rows:
+            total = (r["success_count"] or 0) + (r["failure_count"] or 0)
+            if total == 0:
+                continue
+            score = (r["success_count"] - r["failure_count"]) / total
+            asn_key: int | None = None if r["asn"] == _GLOBAL_ASN else int(r["asn"])
+            out[(asn_key, BlockType(r["block_type"]), r["recipe_id"])] = score
+        return out
 
     def incidents_recent(self, *, max_age_minutes: int = 60) -> list[Incident]:
         cutoff = datetime.now(UTC) - timedelta(minutes=max_age_minutes)
