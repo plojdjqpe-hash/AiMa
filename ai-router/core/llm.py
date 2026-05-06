@@ -76,7 +76,12 @@ class LLM:
         except requests.RequestException as exc:
             raise LLMError(f"Request to {model} failed: {exc}") from exc
 
-        data = response.json()
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise LLMError(
+                f"Invalid JSON response from {model}: {response.text[:200]}"
+            ) from exc
 
         try:
             return data["choices"][0]["message"]["content"]
