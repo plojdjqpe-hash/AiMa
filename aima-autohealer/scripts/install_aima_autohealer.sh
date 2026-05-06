@@ -35,7 +35,16 @@ set -Eeuo pipefail
 
 # ─── Configurable knobs (env-overrideable) ─────────────────────────────────
 AIMA_REPO="${AIMA_REPO:-https://github.com/plojdjqpe-hash/AiMa.git}"
-AIMA_REF="${AIMA_REF:-main}"
+# Order: try main first, fall back to the active PR branch. Override with AIMA_REF.
+AIMA_REF="${AIMA_REF:-}"
+AIMA_REF_FALLBACKS=(
+    "main"
+    "devin/1778041571-aima-autohealer-prototype"
+)
+# Skip git clone entirely and install from a local checkout (e.g. when you've
+# already cloned the repo on the host). Should point at the AiMa repo root,
+# the script reads `<AIMA_LOCAL_PATH>/aima-autohealer`.
+AIMA_LOCAL_PATH="${AIMA_LOCAL_PATH:-}"
 XS_ROOT="${XS_ROOT:-/opt/xservis}"
 APP_DIR="${APP_DIR:-${XS_ROOT}/backend/app}"
 ENV_FILE="${ENV_FILE:-${XS_ROOT}/.env}"
@@ -102,11 +111,34 @@ ROLLBACK() {
 # ─── 2. Fetch source ───────────────────────────────────────────────────────
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-log "cloning $AIMA_REPO@$AIMA_REF → $WORK"
-git clone --depth 1 --branch "$AIMA_REF" "$AIMA_REPO" "$WORK/AiMa" >/dev/null 2>&1 \
-    || fatal "git clone failed"
-SRC="$WORK/AiMa/aima-autohealer"
-[[ -f "$SRC/pyproject.toml" ]] || fatal "$SRC missing pyproject.toml — wrong ref?"
+
+if [[ -n "$AIMA_LOCAL_PATH" ]]; then
+    log "using local source $AIMA_LOCAL_PATH (skipping git clone)"
+    SRC="$AIMA_LOCAL_PATH/aima-autohealer"
+    [[ -f "$SRC/pyproject.toml" ]] || fatal "$SRC missing pyproject.toml"
+else
+    # Try AIMA_REF (if set), else fallbacks in order until one has the package.
+    REFS_TO_TRY=()
+    [[ -n "$AIMA_REF" ]] && REFS_TO_TRY+=("$AIMA_REF")
+    REFS_TO_TRY+=("${AIMA_REF_FALLBACKS[@]}")
+    SRC=""
+    for ref in "${REFS_TO_TRY[@]}"; do
+        log "trying $AIMA_REPO@$ref"
+        rm -rf "$WORK/AiMa"
+        if git clone --depth 1 --branch "$ref" "$AIMA_REPO" "$WORK/AiMa" >/dev/null 2>&1; then
+            if [[ -f "$WORK/AiMa/aima-autohealer/pyproject.toml" ]]; then
+                SRC="$WORK/AiMa/aima-autohealer"
+                log "  -> ref $ref contains aima-autohealer package, using it"
+                break
+            else
+                warn "  -> ref $ref clones but has no aima-autohealer/ — trying next"
+            fi
+        else
+            warn "  -> ref $ref clone failed — trying next"
+        fi
+    done
+    [[ -n "$SRC" ]] || fatal "no usable ref found in [${REFS_TO_TRY[*]}]; pass AIMA_REF=<branch> or AIMA_LOCAL_PATH=<path-to-AiMa-clone>"
+fi
 
 # ─── 3. Drop the package next to main.py ───────────────────────────────────
 log "copying $SRC/src/aima → $APP_DIR/aima"
