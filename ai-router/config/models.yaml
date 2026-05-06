@@ -1,0 +1,42 @@
+# Model configuration for the AI Router system
+# Models are referenced via OpenRouter model identifiers
+
+agents:
+  planner:
+    model: "openai/gpt-4o"
+    temperature: 0.2
+    description: "Breaks tasks into clear, actionable steps"
+
+  coder:
+    model: "openai/gpt-4o"
+    temperature: 0.2
+    description: "Writes optimized, production-ready code"
+
+  analyst:
+    model: "openai/gpt-4o-mini"
+    temperature: 0.3
+    description: "Analyzes data and extracts insights"
+
+  summarizer:
+    model: "openai/gpt-4o-mini"
+    temperature: 0.2
+    description: "Compresses text into key points"
+
+  validator:
+    model: "openai/gpt-4o"
+    temperature: 0.1
+    description: "Checks correctness and identifies errors"
+
+compressor:
+  model: "openai/gpt-4o-mini"
+  temperature: 0.2
+
+fallback_chain:
+  - "openai/gpt-4o"
+  - "anthropic/claude-3-opus"
+  - "google/gemini-2.0-flash"
+  - "openai/gpt-4o-mini"
+
+defaults:
+  timeout: 60
+  temperature: 0.2
