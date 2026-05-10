@@ -159,21 +159,36 @@ cp -a "$SRC/src/aima" "$APP_DIR/aima"
 # ─── 4. Patch main.py (idempotent) ─────────────────────────────────────────
 PATCH_BEGIN='# >>> aima auto-healer >>>'
 PATCH_END='# <<< aima auto-healer <<<'
-if ! grep -q "$PATCH_BEGIN" "$APP_DIR/main.py"; then
-    log "injecting attach() call into main.py"
-    cat >>"$APP_DIR/main.py" <<PYEOF
+# We always rewrite the patch block so older, less verbose versions get
+# replaced and we always end up with the diagnostic `print()` lines below.
+if grep -q "$PATCH_BEGIN" "$APP_DIR/main.py"; then
+    log "main.py already patched — replacing block to refresh diagnostics"
+    sed -i "/$PATCH_BEGIN/,/$PATCH_END/d" "$APP_DIR/main.py"
+fi
+log "injecting attach() call into main.py"
+cat >>"$APP_DIR/main.py" <<PYEOF
 
 $PATCH_BEGIN
+import sys as _aima_sys
+print("[aima-inject] entering attach try-block", file=_aima_sys.stderr, flush=True)
 try:
     from aima.integration.xservis_loader import attach as _aima_attach
-    _aima_attach(app)
+    _aima_result = _aima_attach(app)
+    print(f"[aima-inject] attach() returned {_aima_result!r}", file=_aima_sys.stderr, flush=True)
 except Exception as _aima_exc:  # noqa: BLE001
+    import traceback as _aima_tb
+    print(f"[aima-inject] attach failed: {_aima_exc!r}", file=_aima_sys.stderr, flush=True)
+    _aima_tb.print_exc()
     import logging as _logging
     _logging.getLogger("aima").exception("attach failed: %s", _aima_exc)
 $PATCH_END
 PYEOF
-else
-    log "main.py already patched — skipping"
+
+# Quick sanity check: the resulting file must parse as Python.
+if ! python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$APP_DIR/main.py" 2>/dev/null; then
+    warn "main.py failed to parse after inject — rolling back"
+    ROLLBACK
+    fatal "install failed (main.py parse error)"
 fi
 
 # ─── 5. Seed env vars (only if absent) ─────────────────────────────────────

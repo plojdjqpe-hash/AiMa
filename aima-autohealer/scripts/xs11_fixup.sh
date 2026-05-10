@@ -146,49 +146,84 @@ SQL
 fi
 
 # ─── Step 4: patch cmd_start so /start auto-registers users ───────────────
+# We don't know what the registration helper is called in every fork of this
+# bot, so we detect it by name. If we can't find one we don't try to invent
+# anything — we just print enough context for an operator to patch by hand.
+CANDIDATE_HELPERS=(_ensure_user ensure_user _register_user register_user create_user upsert_user)
+
 if [[ -f "$APP_DIR/bot.py" ]]; then
     BOT_PY="$APP_DIR/bot.py"
-    log "checking $BOT_PY for cmd_start → _ensure_user wiring"
+    log "checking $BOT_PY for a user-registration helper to wire into cmd_start"
 
-    if ! grep -q "_ensure_user" "$BOT_PY"; then
-        warn "_ensure_user helper not found in bot.py — skipping patch"
-    elif python3 - "$BOT_PY" <<'PY'
-import sys
+    HELPER=""
+    for cand in "${CANDIDATE_HELPERS[@]}"; do
+        if grep -qE "^(async\s+)?def\s+${cand}\s*\(" "$BOT_PY"; then
+            HELPER="$cand"
+            break
+        fi
+    done
+
+    if [[ -z "$HELPER" ]]; then
+        warn "none of [${CANDIDATE_HELPERS[*]}] found in bot.py"
+        warn "skipping cmd_start patch. To wire it up by hand, look at:"
+        warn "  $(grep -nE '^(async\s+)?def\s+\w+' "$BOT_PY" | head -30 | sed 's/^/    /')"
+        warn "  $(grep -nE 'cmd_start' "$BOT_PY" | head -10 | sed 's/^/    /')"
+    elif python3 - "$BOT_PY" "$HELPER" <<'PY'
 import re
+import sys
 
-src = open(sys.argv[1]).read()
+path, helper = sys.argv[1], sys.argv[2]
+src = open(path).read()
 m = re.search(r"async def cmd_start\b[^\n]*:\n", src)
 if not m:
-    print("no cmd_start signature found; nothing to do")
+    print(f"no cmd_start in {path}")
     sys.exit(2)
 body_start = m.end()
-# crudely walk to next top-level "async def " or end of file
 nxt = re.search(r"\nasync def \w+\b|\ndef \w+\b", src[body_start:])
 body_end = body_start + nxt.start() if nxt else len(src)
-already = "_ensure_user" in src[body_start:body_end]
-print("already wired" if already else "needs patch")
-sys.exit(0 if already else 1)
+print("already wired" if helper in src[body_start:body_end] else "needs patch")
+sys.exit(0 if helper in src[body_start:body_end] else 1)
 PY
     then
-        log "  cmd_start already calls _ensure_user — no patch needed"
+        log "  cmd_start already calls $HELPER — no patch needed"
     else
         TS=$(date +%Y%m%d-%H%M%S)
         cp -p "$BOT_PY" "$BOT_PY.fixup-$TS.bak"
-        log "  backup → $BOT_PY.fixup-$TS.bak"
+        log "  using helper '$HELPER' (backup at $BOT_PY.fixup-$TS.bak)"
 
-        python3 - "$BOT_PY" <<'PY'
+        # Try to detect the helper's parameter names so we pass arguments it
+        # actually accepts. Falls back to (m.from_user.id,) — almost every
+        # implementation accepts a positional Telegram ID.
+        python3 - "$BOT_PY" "$HELPER" <<'PY'
+import inspect
 import re
 import sys
 
-path = sys.argv[1]
+path, helper = sys.argv[1], sys.argv[2]
 src = open(path).read()
 
-m = re.search(r"(async def cmd_start\([^)]*\)[^\n]*:\n)", src)
-if not m:
-    sys.exit("cmd_start not found")
-header_end = m.end()
+sig = re.search(rf"(async\s+)?def\s+{helper}\s*\(([^)]*)\)", src)
+params = (sig.group(2) if sig else "").split(",") if sig else []
+param_names = [p.strip().split(":")[0].split("=")[0].strip() for p in params if p.strip()]
+# Drop self/cls.
+param_names = [p for p in param_names if p not in ("self", "cls")]
 
-# Detect indentation of the next non-blank line.
+# Build a call. Prefer the safest "single positional Telegram ID" form.
+if "tg_id" in param_names:
+    call_args = "tg_id=m.from_user.id"
+elif "user_id" in param_names:
+    call_args = "user_id=m.from_user.id"
+elif param_names:
+    call_args = "m.from_user.id"
+else:
+    call_args = ""
+is_async = bool(sig and sig.group(1))
+prefix = "await " if is_async else ""
+
+m_cmd = re.search(r"(async def cmd_start\([^)]*\)[^\n]*:\n)", src)
+if not m_cmd:
+    sys.exit("cmd_start not found")
+header_end = m_cmd.end()
 rest = src[header_end:]
 indent_match = re.search(r"^([ \t]+)\S", rest, re.MULTILINE)
 indent = indent_match.group(1) if indent_match else "    "
@@ -197,21 +232,16 @@ snippet = (
     f"{indent}# xs11_fixup: auto-register Telegram user on /start so the\n"
     f"{indent}# mini-app stops showing 'Не активна' for first-time visitors.\n"
     f"{indent}try:\n"
-    f"{indent}    await _ensure_user(\n"
-    f"{indent}        bot=m.bot,\n"
-    f"{indent}        tg_id=m.from_user.id,\n"
-    f"{indent}        first_name=getattr(m.from_user, 'first_name', '') or '',\n"
-    f"{indent}    )\n"
+    f"{indent}    {prefix}{helper}({call_args})\n"
     f"{indent}except Exception as _xs11_fixup_exc:  # noqa: BLE001\n"
     f"{indent}    import logging as _xs11_fixup_log\n"
     f"{indent}    _xs11_fixup_log.getLogger('xservis').warning(\n"
-    f"{indent}        'cmd_start: _ensure_user failed: %s', _xs11_fixup_exc\n"
+    f"{indent}        'cmd_start: %s failed: %s', '{helper}', _xs11_fixup_exc\n"
     f"{indent}    )\n"
 )
 
-new_src = src[:header_end] + snippet + src[header_end:]
-open(path, "w").write(new_src)
-print("patched")
+open(path, "w").write(src[:header_end] + snippet + src[header_end:])
+print(f"patched: cmd_start -> {prefix}{helper}({call_args})")
 PY
         log "  cmd_start patched — restart the backend container to pick it up"
         log "  e.g.: docker compose -f $COMPOSE_FILE restart $BACKEND_CONTAINER"
