@@ -77,6 +77,10 @@ CREATE TABLE IF NOT EXISTS learned_rules (
     recipe_id TEXT NOT NULL,
     success_count INTEGER NOT NULL DEFAULT 0,
     failure_count INTEGER NOT NULL DEFAULT 0,
+    -- weak passive signal: number of times the detector suggested this
+    -- recipe for this (asn, block_type) without us knowing whether it
+    -- ultimately worked. Useful while running in detect-only mode.
+    observed_count INTEGER NOT NULL DEFAULT 0,
     last_outcome_at TEXT NOT NULL,
     last_note TEXT,
     PRIMARY KEY (asn, block_type, recipe_id)
@@ -84,6 +88,12 @@ CREATE TABLE IF NOT EXISTS learned_rules (
 CREATE INDEX IF NOT EXISTS learned_rules_lookup
     ON learned_rules(block_type, asn);
 """
+
+# Columns added after the original schema shipped. We try to add them at
+# startup so older AIMA databases keep working without a migration tool.
+_LEARNED_RULES_ADDED_COLUMNS = (
+    ("observed_count", "INTEGER NOT NULL DEFAULT 0"),
+)
 
 _GLOBAL_ASN = -1
 
@@ -93,9 +103,35 @@ class Store:
 
     def __init__(self, db_path: str | Path = "aima.db") -> None:
         self.db_path = Path(db_path)
-        self._conn = sqlite3.connect(self.db_path, isolation_level=None)
+        # check_same_thread=False is safe here because:
+        #   * isolation_level=None gives us autocommit mode
+        #   * SQLite serialises writes internally via its own file-level lock
+        #   * we never share a cursor across threads (always borrow via .cursor())
+        # Without this flag the Store cannot be used from FastAPI request
+        # workers when a scheduler thread also holds the connection.
+        self._conn = sqlite3.connect(
+            self.db_path, isolation_level=None, check_same_thread=False
+        )
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
+        self._migrate_learned_rules()
+
+    def _migrate_learned_rules(self) -> None:
+        """Best-effort additive migrations for the learned_rules table.
+
+        SQLite has no ``ADD COLUMN IF NOT EXISTS`` so we just try and swallow
+        the duplicate-column error. Done at every Store() construction; it's
+        idempotent and microsecond-cheap on an existing DB.
+        """
+
+        for col_name, col_decl in _LEARNED_RULES_ADDED_COLUMNS:
+            try:
+                self._conn.execute(
+                    f"ALTER TABLE learned_rules ADD COLUMN {col_name} {col_decl}"
+                )
+            except sqlite3.OperationalError:
+                # column already exists (or table wasn't there yet)
+                pass
 
     def close(self) -> None:
         self._conn.close()
@@ -292,6 +328,39 @@ class Store:
                     datetime.now(UTC).isoformat(),
                     note,
                 ),
+            )
+
+    def record_observation(
+        self,
+        *,
+        asn: int | None,
+        block_type: BlockType,
+        recipe_id: str,
+        note: str = "observed",
+    ) -> None:
+        """Increment the weak ``observed_count`` for a (asn, block_type, recipe).
+
+        Used by the slow loop to passively log "the detector keeps suggesting
+        this recipe" while AIMA is in detect-only mode (``AIMA_AUTO_APPLY=0``).
+        It does NOT touch ``success_count`` / ``failure_count``. ``last_note``
+        is only overwritten when the row is brand new — established rows keep
+        whatever note ``record_recipe_outcome`` last wrote there.
+        """
+
+        asn_key = _GLOBAL_ASN if asn is None else int(asn)
+        now_iso = datetime.now(UTC).isoformat()
+        with self.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO learned_rules
+                    (asn, block_type, recipe_id, success_count, failure_count,
+                     observed_count, last_outcome_at, last_note)
+                VALUES(?, ?, ?, 0, 0, 1, ?, ?)
+                ON CONFLICT(asn, block_type, recipe_id) DO UPDATE SET
+                    observed_count = learned_rules.observed_count + 1,
+                    last_outcome_at = excluded.last_outcome_at
+                """,
+                (asn_key, block_type.value, recipe_id, now_iso, note),
             )
 
     def learned_priority_map(self) -> dict[tuple[int | None, BlockType, str], float]:

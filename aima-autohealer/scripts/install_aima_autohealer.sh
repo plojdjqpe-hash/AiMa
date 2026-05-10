@@ -54,7 +54,13 @@ COMPOSE_FILE="${COMPOSE_FILE:-${XS_ROOT}/docker-compose.yml}"
 COMPOSE_SERVICE="${COMPOSE_SERVICE:-backend}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8000/aima/health}"
 HEALTH_FALLBACK="${HEALTH_FALLBACK:-http://127.0.0.1:8000/healthz}"
-HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-30}"   # seconds to wait for backend to come up
+HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-90}"   # seconds to wait for backend to come up
+# When only /aima/health is unreachable but the backend itself is alive, the
+# AIMA attach() is a no-op (caught by its own try/except). In that case we
+# normally do NOT roll back the entire backend just because the auto-healer
+# didn't attach — the host stays running and AIMA can be retried later.
+# Set to 1 to force the legacy "any AIMA failure rolls everything back" behaviour.
+AIMA_STRICT_ROLLBACK="${AIMA_STRICT_ROLLBACK:-0}"
 
 # ─── Logging ───────────────────────────────────────────────────────────────
 log() { printf '\033[1;36m[aima-install]\033[0m %s\n' "$*"; }
@@ -192,30 +198,43 @@ log "starting $COMPOSE_SERVICE"
 "${DC[@]}" up -d "$COMPOSE_SERVICE"
 
 # ─── 7. Health check ───────────────────────────────────────────────────────
-log "waiting up to ${HEALTH_TIMEOUT}s for $HEALTH_URL"
-ok=0
+log "waiting up to ${HEALTH_TIMEOUT}s for $HEALTH_URL (fallback: $HEALTH_FALLBACK)"
+aima_ok=0
+backend_ok=0
 for i in $(seq 1 "$HEALTH_TIMEOUT"); do
     if curl -fsS --max-time 2 "$HEALTH_URL" >/dev/null 2>&1; then
-        ok=1; log "AIMA healthy on /aima/health (after ${i}s)"; break
+        aima_ok=1; backend_ok=1
+        log "AIMA healthy on /aima/health (after ${i}s)"
+        break
     fi
     if curl -fsS --max-time 2 "$HEALTH_FALLBACK" >/dev/null 2>&1; then
-        # backend is alive but /aima/ didn't attach — keep waiting a bit
-        :
+        backend_ok=1
+        # backend is alive; keep waiting for AIMA to attach
     fi
     sleep 1
 done
 
-if [[ "$ok" -ne 1 ]]; then
+if [[ "$aima_ok" -ne 1 ]]; then
     warn "AIMA /aima/health unreachable after ${HEALTH_TIMEOUT}s"
-    if curl -fsS --max-time 2 "$HEALTH_FALLBACK" >/dev/null 2>&1; then
-        warn "but backend is alive on $HEALTH_FALLBACK — AIMA likely failed to attach"
-        warn "check container logs: ${DC[*]} logs --tail=200 $COMPOSE_SERVICE"
-        warn "AIMA_ENABLED can be set to 0 in $ENV_FILE to disable; rolling back code anyway."
+    log "---- last 50 lines of $COMPOSE_SERVICE container logs ----"
+    "${DC[@]}" logs --tail=50 "$COMPOSE_SERVICE" 2>&1 | sed 's/^/    /' >&2 || true
+    log "---- end of container logs ----"
+
+    if [[ "$backend_ok" -eq 1 ]]; then
+        warn "backend itself is alive on $HEALTH_FALLBACK — AIMA failed to attach but the host is up"
+        if [[ "$AIMA_STRICT_ROLLBACK" == "1" ]]; then
+            warn "AIMA_STRICT_ROLLBACK=1 → rolling back anyway"
+            ROLLBACK
+            fatal "install failed (strict mode) — backup restored from $BACKUP"
+        fi
+        warn "keeping backend running. Disable AIMA via 'AIMA_ENABLED=0' in $ENV_FILE if needed."
+        warn "to force rollback re-run with AIMA_STRICT_ROLLBACK=1."
+        warn "backup is preserved at $BACKUP"
     else
         warn "backend is also down — full rollback"
+        ROLLBACK
+        fatal "install failed — backup restored from $BACKUP"
     fi
-    ROLLBACK
-    fatal "install failed — backup restored from $BACKUP"
 fi
 
 # ─── 8. Done ───────────────────────────────────────────────────────────────

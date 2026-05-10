@@ -39,6 +39,7 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
+from ..admin import build_admin_router
 from ..api import build_router
 from ..probe import Vantage
 from ..scheduler import HealerScheduler
@@ -117,8 +118,17 @@ def attach(app: FastAPI) -> bool:
             prefix="/aima",
             tags=["aima"],
         )
+        app.include_router(
+            build_admin_router(lambda: store),
+            prefix="/aima/admin",
+            tags=["aima-admin"],
+        )
 
-        logger.info("aima: attached at /aima, db=%s, vantage=%s", db_path, vantage.name)
+        logger.info(
+            "aima: attached at /aima (+ /aima/admin), db=%s, vantage=%s",
+            db_path,
+            vantage.name,
+        )
         return True
     except Exception:
         # Catch-all: AIMA must never break the host startup.
