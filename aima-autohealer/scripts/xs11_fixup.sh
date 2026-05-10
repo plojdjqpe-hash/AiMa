@@ -62,6 +62,14 @@ if ! docker ps --format '{{.Names}}' | grep -Fxq "$PG_CONTAINER"; then
     fatal "postgres container '$PG_CONTAINER' is not running"
 fi
 
+# Numeric inputs are interpolated raw into SQL — reject anything that is not a
+# plain non-negative integer up front, so we can never end up with crafted
+# values reaching the database.
+[[ "$OWNER_TG_ID" =~ ^[0-9]+$ ]] \
+    || fatal "OWNER_TG_ID must be a positive integer (got '$OWNER_TG_ID')"
+[[ "$DEFAULT_INBOUND_ID" =~ ^[0-9]+$ ]] \
+    || fatal "DEFAULT_INBOUND_ID must be a positive integer (got '$DEFAULT_INBOUND_ID')"
+
 psql() {
     docker exec -i "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 "$@"
 }
@@ -69,7 +77,11 @@ psql() {
 # ─── Step 1+2: ensure owner user + active subscription ────────────────────
 log "ensuring owner user (tg_id=$OWNER_TG_ID) exists and has an ACTIVE subscription"
 
-psql <<SQL
+# OWNER_NAME and EXPIRY_AT may contain user-supplied text (e.g. "O'Brien").
+# We pass them through psql's :'varname' substitution which handles all SQL
+# string quoting safely — raw shell interpolation into single-quoted SQL
+# would break on apostrophes or, in the worst case, allow injection.
+psql -v owner_name="$OWNER_NAME" -v expiry_at="$EXPIRY_AT" <<SQL
 DO \$\$
 DECLARE
     v_uid INTEGER;
@@ -83,7 +95,7 @@ BEGIN
         INSERT INTO users(tg_id, full_name, locale, is_admin,
                           is_blocked, legacy_imported, bonus_days_remaining,
                           created_at)
-        VALUES(${OWNER_TG_ID}, '${OWNER_NAME}', 'ru', TRUE,
+        VALUES(${OWNER_TG_ID}, :'owner_name', 'ru', TRUE,
                FALSE, FALSE, 0,
                NOW())
         RETURNING id INTO v_uid;
@@ -100,7 +112,7 @@ BEGIN
                                   tariff, status, expiry_at, total_gb, created_at)
         VALUES(v_uid, v_uuid, 'u${OWNER_TG_ID}-free', v_sub_id, ${DEFAULT_INBOUND_ID},
                'pro'::tariff_code, 'ACTIVE'::sub_status,
-               '${EXPIRY_AT}'::timestamptz, 0, NOW());
+               (:'expiry_at')::timestamptz, 0, NOW());
         RAISE NOTICE 'subscription created sub_id=%', v_sub_id;
     ELSE
         RAISE NOTICE 'active subscription already present for tg_id=${OWNER_TG_ID}';
@@ -117,10 +129,10 @@ SQL
 # ─── Step 3 (optional): bulk-activate all subscriptions ────────────────────
 if [[ "$ACTIVATE_ALL_SUBS" == "1" ]]; then
     log "ACTIVATE_ALL_SUBS=1 → setting every subscription to ACTIVE with expiry=$EXPIRY_AT"
-    psql <<SQL
+    psql -v expiry_at="$EXPIRY_AT" <<'SQL'
 UPDATE subscriptions
    SET status   = 'ACTIVE'::sub_status,
-       expiry_at = '${EXPIRY_AT}'::timestamptz
+       expiry_at = (:'expiry_at')::timestamptz
 WHERE status <> 'ACTIVE';
 
 SELECT count(*) AS active_subscriptions
