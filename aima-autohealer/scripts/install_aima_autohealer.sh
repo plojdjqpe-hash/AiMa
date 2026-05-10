@@ -54,6 +54,11 @@ COMPOSE_FILE="${COMPOSE_FILE:-${XS_ROOT}/docker-compose.yml}"
 COMPOSE_SERVICE="${COMPOSE_SERVICE:-backend}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8000/aima/health}"
 HEALTH_FALLBACK="${HEALTH_FALLBACK:-http://127.0.0.1:8000/healthz}"
+# When the fallback /healthz path doesn't exist on this backend, we still
+# want to detect "uvicorn is answering at all". This URL is hit *without* the
+# -f flag, so anything except a connection error / timeout (2xx/3xx/4xx/5xx)
+# is treated as proof of life.
+BACKEND_BASE_URL="${BACKEND_BASE_URL:-http://127.0.0.1:8000/}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-90}"   # seconds to wait for backend to come up
 # When only /aima/health is unreachable but the backend itself is alive, the
 # AIMA attach() is a no-op (caught by its own try/except). In that case we
@@ -198,21 +203,46 @@ log "starting $COMPOSE_SERVICE"
 "${DC[@]}" up -d "$COMPOSE_SERVICE"
 
 # ─── 7. Health check ───────────────────────────────────────────────────────
-log "waiting up to ${HEALTH_TIMEOUT}s for $HEALTH_URL (fallback: $HEALTH_FALLBACK)"
+log "waiting up to ${HEALTH_TIMEOUT}s for $HEALTH_URL (fallback: $HEALTH_FALLBACK, base: $BACKEND_BASE_URL)"
+
+# Returns 0 iff $1 returned an HTTP 2xx response (curl -f). Used for
+# /aima/health which is expected to return JSON 200.
+_strict_ok() {
+    curl -fsS --max-time 2 "$1" >/dev/null 2>&1
+}
+
+# Returns 0 iff curl successfully exchanged any HTTP response with $1 —
+# i.e. uvicorn / the host backend is answering at all (even with 4xx/5xx).
+# This is the right "is the backend alive?" question because some forks of
+# xservis don't expose /healthz, but they all serve *something* on /.
+_alive_ok() {
+    local code
+    code=$(curl -o /dev/null -s --max-time 2 -w '%{http_code}' "$1" 2>/dev/null || echo 000)
+    [[ -n "$code" && "$code" != "000" ]]
+}
+
 aima_ok=0
 backend_ok=0
 for i in $(seq 1 "$HEALTH_TIMEOUT"); do
-    if curl -fsS --max-time 2 "$HEALTH_URL" >/dev/null 2>&1; then
+    if _strict_ok "$HEALTH_URL"; then
         aima_ok=1; backend_ok=1
         log "AIMA healthy on /aima/health (after ${i}s)"
         break
     fi
-    if curl -fsS --max-time 2 "$HEALTH_FALLBACK" >/dev/null 2>&1; then
-        backend_ok=1
-        # backend is alive; keep waiting for AIMA to attach
+    if [[ "$backend_ok" -ne 1 ]]; then
+        if _strict_ok "$HEALTH_FALLBACK" || _alive_ok "$BACKEND_BASE_URL"; then
+            backend_ok=1
+            # backend is alive; keep waiting for AIMA to attach
+        fi
     fi
     sleep 1
 done
+
+# Last-chance probe in case the backend only became alive in the final second.
+if [[ "$backend_ok" -ne 1 ]] \
+    && (_strict_ok "$HEALTH_FALLBACK" || _alive_ok "$BACKEND_BASE_URL"); then
+    backend_ok=1
+fi
 
 if [[ "$aima_ok" -ne 1 ]]; then
     warn "AIMA /aima/health unreachable after ${HEALTH_TIMEOUT}s"
