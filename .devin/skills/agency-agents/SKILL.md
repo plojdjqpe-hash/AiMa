@@ -1,113 +1,52 @@
 ---
 name: agency-agents
-description: "Коллекция 140+ специализированных AI-агентов: engineering, design, marketing, strategy, operations, data, content, community. Каждый агент — эксперт с уникальной личностью и deliverables."
+description: "140+ специализированных AI-агентов: engineering, design, marketing, strategy, data."
 ---
 
-# Agency Agents — Специализированные AI-агенты
+# Agency Agents — 140+ специалистов
 
-Источник: [msitarzewski/agency-agents](https://github.com/msitarzewski/agency-agents) (MIT)
+Каждый агент: специализация + личность + процессы + deliverables. Не generic промпты.
 
-Коллекция 140+ специализированных AI-агентов, каждый с уникальной экспертизой, личностью, процессами и конкретными deliverables. Не generic промпт-шаблоны, а battle-tested специалисты.
+## Engineering
 
----
+| Агент | Когда |
+|-------|-------|
+| Frontend Dev | React/Vue/Angular, UI, Web Vitals |
+| Backend Architect | API, БД, микросервисы, облако |
+| Mobile Builder | iOS/Android, React Native, Flutter |
+| AI Engineer | ML, data pipelines, AI-интеграция |
+| DevOps | CI/CD, инфраструктура, мониторинг |
+| Rapid Prototyper | POC, MVP, хакатоны |
+| Security Engineer | Threat modeling, AppSec, security CI/CD |
+| Code Reviewer | PR review, quality gates |
+| DB Optimizer | Schema, query optimization, индексы |
+| Software Architect | System design, DDD, паттерны |
+| SRE | SLO, observability, chaos engineering |
+| Tech Writer | Developer docs, API reference |
+| Incident Commander | Production инциденты, post-mortems |
 
-## Engineering Division — Инженерия
+## Design
 
-| Агент | Специализация | Когда использовать |
-|-------|--------------|-------------------|
-| **Frontend Developer** | React/Vue/Angular, UI, performance | Веб-приложения, pixel-perfect UI, Core Web Vitals |
-| **Backend Architect** | API design, БД, масштабируемость | Серверные системы, микросервисы, облако |
-| **Mobile App Builder** | iOS/Android, React Native, Flutter | Мобильные приложения |
-| **AI Engineer** | ML модели, деплой, AI интеграция | ML фичи, data pipelines, AI-powered приложения |
-| **DevOps Automator** | CI/CD, инфраструктура, cloud ops | Пайплайны, автоматизация деплоя, мониторинг |
-| **Rapid Prototyper** | Быстрые POC, MVP | Proof-of-concept, хакатоны, быстрые итерации |
-| **Security Engineer** | Threat modeling, secure code review | AppSec, vulnerability assessment, security CI/CD |
-| **Code Reviewer** | Конструктивный code review | PR review, quality gates, менторство |
-| **Database Optimizer** | Schema design, query optimization | PostgreSQL/MySQL tuning, медленные запросы |
-| **Git Workflow Master** | Branching strategies, conventional commits | Git workflow, cleanup истории |
-| **Software Architect** | System design, DDD, паттерны | Архитектурные решения, доменное моделирование |
-| **SRE** | SLO, error budgets, observability | Надёжность, chaos engineering |
-| **Technical Writer** | Developer docs, API reference | Техническая документация |
-| **Incident Response Commander** | Управление инцидентами, post-mortems | Production инциденты |
+UI Designer (visual design, design systems) | UX Researcher (user testing, behavior analysis)
 
----
+## Strategy
 
-## Design Division — Дизайн
+Product Manager (roadmap, user stories) | Business Analyst (требования, процессы) | Growth (метрики, эксперименты)
 
-| Агент | Специализация | Когда использовать |
-|-------|--------------|-------------------|
-| **UI Designer** | Visual design, design systems | Создание интерфейсов, brand consistency |
-| **UX Researcher** | User testing, behavior analysis | Понимание пользователей, usability тестирование |
+## Marketing & Content
 
----
+SEO | Content Strategist | Community Manager | Copywriter
 
-## Strategy Division — Стратегия
+## Data
 
-| Агент | Когда использовать |
-|-------|-------------------|
-| **Product Manager** | Приоритизация фич, roadmap, user stories |
-| **Business Analyst** | Анализ требований, процессов |
-| **Growth Strategist** | Метрики роста, эксперименты |
+Data Engineer (pipelines, ETL) | Data Analyst (дашборды, инсайты)
 
----
-
-## Marketing & Content Division
-
-| Агент | Когда использовать |
-|-------|-------------------|
-| **SEO Specialist** | Оптимизация для поисковых систем |
-| **Content Strategist** | Контент-план, редакционная политика |
-| **Community Manager** | Управление сообществом, вовлечение |
-| **Copywriter** | Продающие тексты, landing pages |
-
----
-
-## Data Division
-
-| Агент | Когда использовать |
-|-------|-------------------|
-| **Data Engineer** | Data pipelines, ETL/ELT, lakehouse |
-| **Data Analyst** | Анализ данных, дашборды, инсайты |
-
----
-
-## Как использовать агентов
-
-### Принцип: Роль → Контекст → Задача
-
-1. **Выбери роль** — определи какой специалист нужен для задачи
-2. **Дай контекст** — опиши проект, стек, ограничения
-3. **Поставь задачу** — конкретный deliverable с критериями приёмки
-
-### Примеры активации
+## Использование: Роль → Контекст → Задача
 
 ```
-Задача: Спроектировать API для системы уведомлений
 Роль: Backend Architect
-Контекст: Node.js + PostgreSQL, микросервисы, 100K пользователей
-Deliverable: API specification + архитектурная схема
+Контекст: Node.js + PostgreSQL, микросервисы, 100K users
+Задача: API specification для системы уведомлений
 ```
 
-```
-Задача: Провести code review PR #42
-Роль: Code Reviewer
-Контекст: React приложение, TypeScript strict
-Deliverable: Список issues с severity и рекомендациями
-```
-
-```
-Задача: Оптимизировать медленные запросы
-Роль: Database Optimizer
-Контекст: PostgreSQL 15, таблица orders 50M строк
-Deliverable: Индексы + переписанные запросы + бенчмарки
-```
-
----
-
-## Принципы работы агентов
-
-1. **Специализация** — глубокая экспертиза в своей области, а не generic ответы
-2. **Deliverable-focused** — реальный код, процессы, измеримые результаты
-3. **Production-ready** — battle-tested workflow и метрики успеха
-4. **Personality-driven** — уникальный голос и подход к коммуникации
-5. **Composable** — агенты комбинируются для сложных задач
+Агенты комбинируются для сложных задач. Каждый — production-ready с метриками успеха.

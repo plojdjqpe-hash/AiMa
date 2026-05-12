@@ -1,95 +1,49 @@
 ---
 name: security-guidance
-description: "Руководство по безопасности кода. Проверка на уязвимости, security patterns, OWASP, STRIDE. Используй при редактировании кода, связанного с безопасностью."
+description: "Безопасность кода: OWASP Top 10, STRIDE, security patterns."
 ---
 
-# Security Guidance — Безопасность кода
+# Security Guidance
 
-Источник: [anthropics/claude-code/plugins/security-guidance](https://github.com/anthropics/claude-code/tree/main/plugins/security-guidance) (Anthropic)
+## Правила
 
-Руководство по обнаружению и предотвращению уязвимостей при разработке. Автоматическая проверка security patterns в редактируемом коде.
+- Не expose/log секреты. Не коммить .env/credentials
+- Валидируй и санитизируй весь input
+- Параметризованные запросы (не конкатенация строк)
+- Проверяй авторизацию на каждом эндпоинте
 
----
+## Security Patterns
 
-## Основные правила
+**GitHub Actions**: env variables вместо `${{ github.event.* }}` в run
 
-1. **Никогда** не expose или log секреты/ключи
-2. **Никогда** не коммить credentials (.env, credentials.json, etc.)
-3. **Всегда** валидируй и санитизируй пользовательский ввод
-4. **Всегда** используй параметризованные запросы (не конкатенацию строк)
-5. **Всегда** проверяй авторизацию на каждом эндпоинте
+**Web**: SQL Injection (ORM/параметры), XSS (экранирование, CSP), CSRF (токены), SSRF (whitelist URL), Path Traversal (нормализация, запрет `../`)
 
----
+**Auth**: bcrypt/argon2, JWT (проверяй алгоритм/expiry/issuer), secure/httponly/samesite cookies, rate limiting
 
-## Security Patterns по категориям
+**Crypto**: не своя криптография, AES-256-GCM, Ed25519, `crypto.randomBytes()`/`secrets.token_hex()`
 
-### GitHub Actions Workflows
-При редактировании `.github/workflows/*.yml`:
-- **Command Injection**: Никогда не используй недоверенный input напрямую в `run:` командах
-- Используй `env:` variables вместо `${{ github.event.issue.title }}`
-- Ревьюй: https://github.blog/security/vulnerability-research/how-to-catch-github-actions-workflow-injections-before-attackers-do/
+**Deps**: `npm audit`/`pip audit`, фиксированные версии
 
-### API и Web-приложения
-- **SQL Injection**: Параметризованные запросы, ORM
-- **XSS**: Экранирование вывода, Content Security Policy
-- **CSRF**: Токены для мутирующих операций
-- **SSRF**: Валидация URL, whitelist доменов
-- **Path Traversal**: Нормализация путей, запрет `../`
+## OWASP Top 10
 
-### Аутентификация и авторизация
-- Используй проверенные библиотеки (bcrypt, argon2 для хэширования)
-- JWT: проверяй алгоритм, срок действия, issuer
-- Session: secure, httponly, samesite cookies
-- Rate limiting на login endpoints
+1. Broken Access Control — авторизация на каждом уровне
+2. Crypto Failures — шифрование at rest + in transit
+3. Injection — параметризация
+4. Insecure Design — threat modeling
+5. Misconfiguration — минимальные привилегии, нет debug в prod
+6. Vulnerable Components — audit + обновления
+7. Auth Failures — MFA, rate limiting
+8. Data Integrity — подпись и верификация updates
+9. Logging Failures — логируй security events, не PII
+10. SSRF — whitelist URL
 
-### Криптография
-- Не пиши свою криптографию
-- Используй AES-256-GCM для шифрования
-- RSA минимум 2048 бит, предпочтительно Ed25519
-- Безопасный random: `crypto.randomBytes()`, `secrets.token_hex()`
+## STRIDE
 
-### Зависимости
-- Проверяй зависимости на известные уязвимости (`npm audit`, `pip audit`)
-- Фиксируй версии зависимостей
-- Минимизируй количество зависимостей
-
----
-
-## OWASP Top 10 — Чеклист
-
-1. **Broken Access Control** — проверяй авторизацию на каждом уровне
-2. **Cryptographic Failures** — шифруй sensitive data at rest и in transit
-3. **Injection** — параметризация всех запросов
-4. **Insecure Design** — threat modeling перед реализацией
-5. **Security Misconfiguration** — минимальные привилегии, отключи debug в prod
-6. **Vulnerable Components** — обновляй зависимости, аудит
-7. **Authentication Failures** — MFA, rate limiting, secure session management
-8. **Data Integrity Failures** — подписывай и верифицируй updates
-9. **Logging Failures** — логируй security events, не логируй PII
-10. **SSRF** — валидируй все URL, whitelist
-
----
-
-## STRIDE Threat Model
-
-При проектировании новых фич, проверь каждую категорию:
-
-| Угроза | Вопрос |
-|--------|--------|
-| **Spoofing** | Можно ли подделать identity? |
-| **Tampering** | Можно ли изменить данные в transit/at rest? |
-| **Repudiation** | Есть ли audit trail? |
-| **Information Disclosure** | Утечка sensitive data? |
-| **Denial of Service** | Можно ли перегрузить систему? |
-| **Elevation of Privilege** | Можно ли получить чужие права? |
-
----
-
-## При каждом ревью кода проверяй
-
-- [ ] Нет hardcoded secrets
-- [ ] Input validation на всех entry points
-- [ ] Правильная обработка ошибок (без раскрытия internals)
-- [ ] Логирование security-значимых событий
-- [ ] Минимальные привилегии для каждого компонента
-- [ ] HTTPS/TLS для всех внешних коммуникаций
+| Угроза | Проверь |
+|--------|---------|
+| Spoofing | подделка identity? |
+| Tampering | изменение данных? |
+| Repudiation | есть audit trail? |
+| Info Disclosure | утечка sensitive data? |
+| DoS | перегрузка системы? |
+| Elevation | чужие права? |

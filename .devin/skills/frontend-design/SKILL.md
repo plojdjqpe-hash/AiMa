@@ -1,81 +1,35 @@
 ---
 name: frontend-design
-description: "Создание production-grade фронтенд-интерфейсов с уникальным дизайном. Используй при сборке веб-компонентов, страниц, приложений. Генерирует креативный, отполированный код без generic AI-эстетики."
+description: "Production-grade фронтенд с уникальным дизайном. Анти-AI-slop эстетика."
 ---
 
-# Frontend Design — Дизайн фронтенда
+# Frontend Design
 
-Источник: [anthropics/claude-code/plugins/frontend-design](https://github.com/anthropics/claude-code/tree/main/plugins/frontend-design) (Anthropic)
-
-Руководство по созданию уникальных, production-grade фронтенд-интерфейсов, которые избегают generic "AI slop" эстетики. Реализуй рабочий код с исключительным вниманием к деталям и креативным выборам.
-
----
+Создание уникальных production-grade интерфейсов без generic "AI slop".
 
 ## Design Thinking
 
-Перед кодом пойми контекст и выбери **СМЕЛОЕ** эстетическое направление:
+Перед кодом выбери **СМЕЛОЕ** направление:
+- **Цель** — какую проблему решает, кто пользователь
+- **Тон** — brutally minimal / maximalist / retro-futuristic / luxury / brutalist / art deco / playful / editorial
+- **Отличие** — что сделает это незабываемым
 
-- **Цель**: Какую проблему решает этот интерфейс? Кто пользователь?
-- **Тон**: Выбери экстрим: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian и т.д.
-- **Ограничения**: Технические требования (фреймворк, производительность, доступность)
-- **Отличие**: Что сделает это НЕЗАБЫВАЕМЫМ? Что запомнит пользователь?
+## Guidelines
 
-**КРИТИЧНО**: Выбери чёткое концептуальное направление и реализуй с точностью. Смелый максимализм и утончённый минимализм — оба работают. Ключ — намеренность, а не интенсивность.
+**Типографика**: уникальные шрифты. НЕ Arial/Inter/Roboto/system fonts. Pair display + body.
 
----
+**Цвет**: cohesive палитра, CSS variables. Доминант + резкие акценты > равномерное распределение.
 
-## Эстетические Guidelines
+**Анимации**: CSS-first. Одна оркестрованная загрузка с staggered reveals > разрозненные микро-взаимодействия.
 
-### Типографика
-- Выбирай шрифты, которые красивые, уникальные и интересные
-- **Избегай** generic шрифтов: Arial, Inter, Roboto, system fonts
-- Сочетай выразительный display-шрифт с утончённым body-шрифтом
-- Неожиданные, характерные выборы шрифтов
+**Layout**: асимметрия, перекрытие, grid-breaking, диагональный поток.
 
-### Цвет и тема
-- Обязуйся на cohesive эстетике
-- Используй CSS variables для консистентности
-- Доминирующие цвета с резкими акцентами > робкие, равномерно распределённые палитры
+**Фоны**: gradient meshes, noise textures, geometric patterns, grain overlays — не solid colors.
 
-### Анимации
-- Используй анимации для эффектов и микро-взаимодействий
-- Приоритет CSS-only решениям
-- Одна хорошо оркестрованная загрузка страницы с staggered reveals > разрозненные микро-взаимодействия
-- Scroll-triggering и hover states, которые удивляют
+## Запрещено
 
-### Пространственная композиция
-- Неожиданные layouts. Асимметрия. Перекрытие. Диагональный поток
-- Grid-breaking элементы
-- Щедрое негативное пространство ИЛИ контролируемая плотность
+Generic шрифты, purple gradients on white, предсказуемые layouts, cookie-cutter паттерны. Каждый дизайн уникален.
 
-### Фоны и визуальные детали
-- Создавай атмосферу и глубину, а не solid colors по умолчанию
-- Gradient meshes, noise textures, geometric patterns
-- Layered transparencies, dramatic shadows, decorative borders
-- Custom cursors, grain overlays
+## Код
 
----
-
-## Чего НИКОГДА не делать
-
-- Overused font families (Inter, Roboto, Arial, system fonts)
-- Cliched color schemes (purple gradients on white backgrounds)
-- Предсказуемые layouts и component patterns
-- Cookie-cutter дизайн без контекстного характера
-- Повторяющиеся выборы (Space Grotesk) между генерациями
-
----
-
-## Реализация
-
-Код должен быть:
-- **Production-grade и функциональный**
-- **Визуально striking и запоминающийся**
-- **Cohesive с чёткой эстетической точкой зрения**
-- **Тщательно refined в каждой детали**
-
-Сложность реализации должна соответствовать эстетическому видению:
-- Максималистские дизайны → elaborate код с обширными анимациями
-- Минималистские дизайны → сдержанность, точность, внимание к spacing и типографике
-
-**Не сдерживайся.** Покажи, что можно создать, когда мыслишь за рамками и полностью отдаёшься уникальному видению.
+Production-grade, визуально striking, cohesive. Сложность реализации = сложность видения.
