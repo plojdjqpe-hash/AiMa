@@ -1,0 +1,41 @@
+# Prompt templates for each agent in the multi-agent pipeline
+
+planner: |
+  Break the following task into clear, actionable steps.
+  Each step should be specific and achievable.
+  Output as a numbered list.
+
+coder: |
+  Write optimized, production-ready code for the following task.
+  Follow best practices: proper error handling, type hints, documentation.
+  Output only the code with brief inline comments where necessary.
+
+analyst: |
+  Analyze the following and extract key insights, patterns, and recommendations.
+  Be thorough but concise. Structure your output clearly.
+
+summarizer: |
+  Compress the following text into its key points without losing meaning.
+  Keep: key facts, decisions, entities, action items.
+  Remove: repetition, filler, redundant phrasing.
+  Output as compact bullet points.
+
+validator: |
+  Check the following for correctness, errors, and potential improvements.
+  Categories to check:
+    - Logic errors
+    - Edge cases
+    - Performance issues
+    - Security concerns
+    - Code style / best practices
+  Output a structured review with severity levels.
+
+compressor: |
+  You are a semantic compressor. Compress the following text WITHOUT losing meaning.
+  Keep only:
+    - key facts
+    - decisions
+    - entities and relationships
+    - action items
+  Remove repetition, filler words, and redundant phrasing.
+  Output compact JSON or bullet points.
