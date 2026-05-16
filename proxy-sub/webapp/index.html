@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Прокси Подписка</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root {
+  --bg: #0f0f14;
+  --card: #1a1a24;
+  --border: #2a2a3a;
+  --accent: #6c5ce7;
+  --accent2: #00cec9;
+  --text: #e8e8f0;
+  --text2: #8888a0;
+  --green: #00b894;
+  --red: #ff6b6b;
+  --orange: #fdcb6e;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 16px;
+}
+.header {
+  text-align: center;
+  padding: 20px 0 16px;
+}
+.header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.header p { color: var(--text2); font-size: 13px; margin-top: 4px; }
+
+.stats-bar {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+.stat-chip {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  text-align: center;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+.stat-chip .num { font-size: 20px; font-weight: 700; color: var(--accent); }
+.stat-chip .lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+.network-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 16px 0;
+}
+.net-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.net-card:hover, .net-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(108,92,231,0.15);
+}
+.net-card .icon { font-size: 28px; }
+.net-card .name { font-size: 14px; font-weight: 600; margin: 6px 0 2px; }
+.net-card .desc { font-size: 11px; color: var(--text2); }
+.net-card .count { font-size: 12px; color: var(--accent2); margin-top: 6px; }
+
+.sub-result {
+  display: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin: 12px 0;
+}
+.sub-result.visible { display: block; }
+.sub-result h3 { font-size: 15px; margin-bottom: 8px; }
+.sub-url {
+  background: #12121a;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--accent2);
+  word-break: break-all;
+  cursor: pointer;
+  position: relative;
+}
+.sub-url:hover { background: #1a1a28; }
+.copy-hint {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 6px;
+  text-align: center;
+}
+.copied { color: var(--green) !important; }
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: all 0.2s;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #8e7cf7);
+  color: white;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-secondary {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.config-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+.config-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.config-item:last-child { border-bottom: none; }
+.config-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.tag-lte { background: rgba(108,92,231,0.2); color: var(--accent); }
+.tag-wifi { background: rgba(0,206,201,0.2); color: var(--accent2); }
+.tag-3g { background: rgba(253,203,110,0.2); color: var(--orange); }
+.tag-ss { background: rgba(0,184,148,0.2); color: var(--green); }
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text2);
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.admin-section {
+  display: none;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.admin-section.visible { display: block; }
+.admin-section h3 { font-size: 14px; color: var(--text2); margin-bottom: 8px; }
+
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--green);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 999;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Прокси Подписка</h1>
+  <p>Авто-прокси для Hiddify</p>
+</div>
+
+<div id="loading" class="loading">
+  <div class="spinner"></div>
+  <p>Загрузка конфигов...</p>
+</div>
+
+<div id="content" style="display:none">
+  <div class="stats-bar" id="stats-bar"></div>
+
+  <div class="network-grid">
+    <div class="net-card" data-network="lte" onclick="selectNetwork('lte')">
+      <div class="icon">📡</div>
+      <div class="name">LTE</div>
+      <div class="desc">REALITY / VISION</div>
+      <div class="count" id="count-lte">—</div>
+    </div>
+    <div class="net-card" data-network="wifi" onclick="selectNetwork('wifi')">
+      <div class="icon">🌐</div>
+      <div class="name">WiFi</div>
+      <div class="desc">WS / TLS / CDN</div>
+      <div class="count" id="count-wifi">—</div>
+    </div>
+    <div class="net-card" data-network="3g" onclick="selectNetwork('3g')">
+      <div class="icon">📶</div>
+      <div class="name">3G</div>
+      <div class="desc">gRPC мультиплекс</div>
+      <div class="count" id="count-3g">—</div>
+    </div>
+    <div class="net-card" data-network="best" onclick="selectNetwork('best')">
+      <div class="icon">🔄</div>
+      <div class="name">Лучшие</div>
+      <div class="desc">Топ 20</div>
+      <div class="count">авто</div>
+    </div>
+  </div>
+
+  <div class="sub-result" id="sub-result">
+    <h3 id="sub-title">Ссылка подписки</h3>
+    <div class="sub-url" id="sub-url" onclick="copyUrl()"></div>
+    <p class="copy-hint" id="copy-hint">Нажми чтобы скопировать</p>
+    <div class="config-list" id="config-list"></div>
+    <button class="btn btn-primary" onclick="copyUrl()">Скопировать ссылку</button>
+    <button class="btn btn-secondary" onclick="openInHiddify()">Открыть в Hiddify</button>
+  </div>
+
+  <div class="admin-section" id="admin-section">
+    <h3>Админ</h3>
+    <button class="btn btn-secondary" onclick="refreshCache()">🔄 Обновить кэш</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = window.location.origin;
+let tg = null;
+let selectedNetwork = null;
+
+try {
+  tg = window.Telegram?.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    document.documentElement.style.setProperty('--bg', tg.themeParams?.bg_color || '#0f0f14');
+    document.documentElement.style.setProperty('--card', tg.themeParams?.secondary_bg_color || '#1a1a24');
+    document.documentElement.style.setProperty('--text', tg.themeParams?.text_color || '#e8e8f0');
+  }
+} catch(e) {}
+
+async function init() {
+  try {
+    const resp = await fetch(`${API}/stats`);
+    const data = await resp.json();
+    renderStats(data);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '<p style="color:var(--red)">Ошибка загрузки. Проверь сервер.</p>';
+  }
+}
+
+function renderStats(data) {
+  const bar = document.getElementById('stats-bar');
+  bar.innerHTML = `
+    <div class="stat-chip"><div class="num">${data.total_configs}</div><div class="lbl">Всего</div></div>
+    <div class="stat-chip"><div class="num">${data.by_type.reality}</div><div class="lbl">REALITY</div></div>
+    <div class="stat-chip"><div class="num">${data.by_type.ws_tls}</div><div class="lbl">WS/TLS</div></div>
+    <div class="stat-chip"><div class="num">${data.by_type.shadowsocks}</div><div class="lbl">SS</div></div>
+  `;
+  document.getElementById('count-lte').textContent = `${data.by_network.lte} конфигов`;
+  document.getElementById('count-wifi').textContent = `${data.by_network.wifi} конфигов`;
+  document.getElementById('count-3g').textContent = `${data.by_network['3g']} конфигов`;
+}
+
+async function selectNetwork(network) {
+  selectedNetwork = network;
+  document.querySelectorAll('.net-card').forEach(c => c.classList.remove('active'));
+  document.querySelector(`[data-network="${network}"]`).classList.add('active');
+
+  const result = document.getElementById('sub-result');
+  result.classList.add('visible');
+
+  const labels = { lte: '📡 LTE', wifi: '🌐 WiFi', '3g': '📶 3G', best: '🔄 Лучшие' };
+  document.getElementById('sub-title').textContent = `${labels[network]} Подписка`;
+
+  const subUrl = `${API}/sub/${network}`;
+  document.getElementById('sub-url').textContent = subUrl;
+  document.getElementById('copy-hint').textContent = 'Нажми чтобы скопировать';
+  document.getElementById('copy-hint').classList.remove('copied');
+
+  try {
+    const resp = await fetch(subUrl);
+    const text = await resp.text();
+    const lines = text.split('\n').filter(l => l.startsWith('vless://') || l.startsWith('ss://'));
+    renderConfigs(lines.slice(0, 10));
+  } catch(e) {
+    document.getElementById('config-list').innerHTML = '<p style="color:var(--red);padding:8px">Ошибка загрузки</p>';
+  }
+}
+
+function renderConfigs(lines) {
+  const list = document.getElementById('config-list');
+  list.innerHTML = lines.map(line => {
+    const hash = line.split('#');
+    const label = hash.length > 1 ? decodeURIComponent(hash[hash.length-1]) : 'config';
+    let tagClass = 'tag-lte';
+    if (label.includes('WiFi')) tagClass = 'tag-wifi';
+    else if (label.includes('3G')) tagClass = 'tag-3g';
+    else if (line.startsWith('ss://')) tagClass = 'tag-ss';
+    const shortLabel = label.slice(0, 30);
+    return `<div class="config-item"><span>${shortLabel}</span><span class="config-tag ${tagClass}">${line.startsWith('ss://') ? 'SS' : 'VLESS'}</span></div>`;
+  }).join('');
+}
+
+async function copyUrl() {
+  const url = document.getElementById('sub-url').textContent;
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Ссылка скопирована!');
+    document.getElementById('copy-hint').textContent = 'Скопировано!';
+    document.getElementById('copy-hint').classList.add('copied');
+  } catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Ссылка скопирована!');
+  }
+}
+
+function openInHiddify() {
+  const url = document.getElementById('sub-url').textContent;
+  const hiddifyUrl = `hiddify://import/${encodeURIComponent(url)}`;
+  window.open(hiddifyUrl, '_blank');
+}
+
+async function refreshCache() {
+  showToast('Обновляю...');
+  try {
+    await fetch(`${API}/refresh`, { method: 'POST' });
+    showToast('Кэш обновлён!');
+    init();
+  } catch(e) {
+    showToast('Ошибка обновления');
+  }
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+init();
+</script>
+</body>
+</html>

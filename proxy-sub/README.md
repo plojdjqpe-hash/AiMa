@@ -1,43 +1,83 @@
 # Proxy Subscription Service
 
-Автоматический сервис подписки для Hiddify. Собирает, фильтрует и отдаёт оптимизированные VLESS/Shadowsocks конфигурации.
+Автоматический сервис подписки для Hiddify: **API + Telegram Bot + WebApp**.
 
 ## Возможности
 
 - Автосбор из 7+ источников (~1500 конфигов)
 - Фильтрация по сети: LTE / 3G / Wi-Fi
 - Приоритизация: REALITY > WS/TLS > gRPC
-- Поддержка портов: 443, 2053, 2083, 2087, 2096, 8443+
-- Дедупликация по MD5
-- Кэширование на 1 час
+- **Telegram бот** — раздача подписок + управление
+- **WebApp** — Telegram Mini App + веб-панель
 - Формат совместим с Hiddify, v2rayNG, NekoBox, Streisand
+
+## Быстрая установка (Linux VPS)
+
+```bash
+curl -sL https://raw.githubusercontent.com/plojdjqpe-hash/AiMa/devin/1777773350-add-claude-code-skill/proxy-sub/install.sh | sudo bash
+```
+
+Или вручную:
+
+```bash
+git clone https://github.com/plojdjqpe-hash/AiMa.git
+cd AiMa/proxy-sub
+sudo bash install.sh
+```
+
+Скрипт установит:
+- Python 3 + venv + зависимости
+- API сервис (FastAPI на порту 8000)
+- Telegram бот (aiogram)
+- WebApp (доступна по /app)
+- systemd сервисы с автозапуском
 
 ## Эндпоинты
 
 | URL | Описание |
 |-----|----------|
-| `/sub` | Все конфигурации |
-| `/sub/lte` | Оптимизированные для LTE |
-| `/sub/3g` | Оптимизированные для 3G |
-| `/sub/wifi` | Оптимизированные для Wi-Fi |
+| `/sub/lte` | Оптимизированные для LTE (REALITY) |
+| `/sub/wifi` | Оптимизированные для Wi-Fi (WS/TLS) |
+| `/sub/3g` | Оптимизированные для 3G (gRPC) |
 | `/sub/best` | Топ-20 лучших |
 | `/sub?ports=443,8443` | Фильтр по портам |
 | `/sub?max=30` | Лимит количества |
 | `/stats` | Статистика |
+| `/app` | WebApp (графический интерфейс) |
+| `/refresh` | Обновить кэш (POST) |
 
-## Запуск
+## Telegram бот
+
+Команды:
+- `/start` — главное меню с кнопками
+- `/lte`, `/wifi`, `/3g` — получить подписку для сети
+- `/best` — лучшие конфиги
+- `/stats` — статистика
+- `/admin` — управление (для админов)
+
+## Переменные окружения
+
+| Переменная | Описание |
+|-----------|----------|
+| `TELEGRAM_BOT_TOKEN` | Токен от @BotFather |
+| `ADMIN_IDS` | Telegram ID админов (через запятую) |
+| `PROXY_SUB_API` | URL API (default: http://127.0.0.1:8000) |
+| `WEBAPP_URL` | URL WebApp для кнопки в боте |
+
+## Управление
 
 ```bash
-pip install fastapi httpx uvicorn
-uvicorn main:app --host 0.0.0.0 --port 8000
+# Статус
+systemctl status proxy-sub-api proxy-sub-bot
+
+# Логи
+journalctl -u proxy-sub-api -f
+journalctl -u proxy-sub-bot -f
+
+# Перезапуск
+systemctl restart proxy-sub-api proxy-sub-bot
+
+# Обновление
+cd /opt/proxy-sub/repo && git pull
+systemctl restart proxy-sub-api proxy-sub-bot
 ```
-
-## Использование в Hiddify
-
-1. Открой Hiddify
-2. **+** → **Добавить подписку**
-3. Вставь URL: `https://your-server.com/sub/lte`
-4. Нажми **Обновить**
-5. Подключись
-
-Hiddify автоматически переключается между конфигурациями при разрыве.

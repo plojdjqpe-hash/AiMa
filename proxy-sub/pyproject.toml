@@ -1,12 +1,13 @@
 [project]
 name = "proxy-sub"
-version = "1.0.0"
-description = "Proxy Subscription Service for Hiddify - auto-fetch, filter, serve VLESS/SS configs"
+version = "2.0.0"
+description = "Proxy Subscription Service for Hiddify - API + Telegram Bot + WebApp"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
     "httpx>=0.27.0",
     "uvicorn>=0.30.0",
+    "aiogram>=3.12.0",
 ]
 
 [build-system]
