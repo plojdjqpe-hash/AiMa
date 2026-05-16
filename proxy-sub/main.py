@@ -7,6 +7,7 @@ Supports LTE/3G/Wi-Fi with auto-switching
 import asyncio
 import base64
 import hashlib
+import pathlib
 import re
 import time
 from datetime import datetime, timezone
@@ -15,6 +16,7 @@ from urllib.parse import unquote, urlparse, parse_qs
 import httpx
 from fastapi import FastAPI, Query, Response
 from fastapi.responses import PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Proxy Subscription Service")
 
@@ -482,3 +484,17 @@ async def stats():
         "last_update": datetime.fromtimestamp(_cache["last_update"], tz=timezone.utc).isoformat() if _cache["last_update"] else None,
         "sources_count": len(SOURCES),
     }
+
+
+@app.post("/refresh")
+async def refresh_cache():
+    """Force refresh config cache."""
+    _cache["last_update"] = 0
+    configs = await fetch_configs()
+    return {"status": "ok", "total_configs": len(configs)}
+
+
+# Serve static webapp files
+_webapp_dir = pathlib.Path(__file__).parent / "webapp"
+if _webapp_dir.exists():
+    app.mount("/app", StaticFiles(directory=str(_webapp_dir), html=True), name="webapp")
