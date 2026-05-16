@@ -20,6 +20,7 @@ description: "140+ специализированных AI-агентов: engin
 | Security Engineer | Threat modeling, AppSec, security CI/CD |
 | Code Reviewer | PR review, quality gates |
 | DB Optimizer | Schema, query optimization, индексы |
+| Git Workflow Master | Branching strategies, conventional commits, cleanup истории |
 | Software Architect | System design, DDD, паттерны |
 | SRE | SLO, observability, chaos engineering |
 | Tech Writer | Developer docs, API reference |
