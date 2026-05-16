@@ -54,7 +54,18 @@ COMPOSE_FILE="${COMPOSE_FILE:-${XS_ROOT}/docker-compose.yml}"
 COMPOSE_SERVICE="${COMPOSE_SERVICE:-backend}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8000/aima/health}"
 HEALTH_FALLBACK="${HEALTH_FALLBACK:-http://127.0.0.1:8000/healthz}"
-HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-30}"   # seconds to wait for backend to come up
+# When the fallback /healthz path doesn't exist on this backend, we still
+# want to detect "uvicorn is answering at all". This URL is hit *without* the
+# -f flag, so anything except a connection error / timeout (2xx/3xx/4xx/5xx)
+# is treated as proof of life.
+BACKEND_BASE_URL="${BACKEND_BASE_URL:-http://127.0.0.1:8000/}"
+HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-90}"   # seconds to wait for backend to come up
+# When only /aima/health is unreachable but the backend itself is alive, the
+# AIMA attach() is a no-op (caught by its own try/except). In that case we
+# normally do NOT roll back the entire backend just because the auto-healer
+# didn't attach — the host stays running and AIMA can be retried later.
+# Set to 1 to force the legacy "any AIMA failure rolls everything back" behaviour.
+AIMA_STRICT_ROLLBACK="${AIMA_STRICT_ROLLBACK:-0}"
 
 # ─── Logging ───────────────────────────────────────────────────────────────
 log() { printf '\033[1;36m[aima-install]\033[0m %s\n' "$*"; }
@@ -148,21 +159,36 @@ cp -a "$SRC/src/aima" "$APP_DIR/aima"
 # ─── 4. Patch main.py (idempotent) ─────────────────────────────────────────
 PATCH_BEGIN='# >>> aima auto-healer >>>'
 PATCH_END='# <<< aima auto-healer <<<'
-if ! grep -q "$PATCH_BEGIN" "$APP_DIR/main.py"; then
-    log "injecting attach() call into main.py"
-    cat >>"$APP_DIR/main.py" <<PYEOF
+# We always rewrite the patch block so older, less verbose versions get
+# replaced and we always end up with the diagnostic `print()` lines below.
+if grep -q "$PATCH_BEGIN" "$APP_DIR/main.py"; then
+    log "main.py already patched — replacing block to refresh diagnostics"
+    sed -i "/$PATCH_BEGIN/,/$PATCH_END/d" "$APP_DIR/main.py"
+fi
+log "injecting attach() call into main.py"
+cat >>"$APP_DIR/main.py" <<PYEOF
 
 $PATCH_BEGIN
+import sys as _aima_sys
+print("[aima-inject] entering attach try-block", file=_aima_sys.stderr, flush=True)
 try:
     from aima.integration.xservis_loader import attach as _aima_attach
-    _aima_attach(app)
+    _aima_result = _aima_attach(app)
+    print(f"[aima-inject] attach() returned {_aima_result!r}", file=_aima_sys.stderr, flush=True)
 except Exception as _aima_exc:  # noqa: BLE001
+    import traceback as _aima_tb
+    print(f"[aima-inject] attach failed: {_aima_exc!r}", file=_aima_sys.stderr, flush=True)
+    _aima_tb.print_exc()
     import logging as _logging
     _logging.getLogger("aima").exception("attach failed: %s", _aima_exc)
 $PATCH_END
 PYEOF
-else
-    log "main.py already patched — skipping"
+
+# Quick sanity check: the resulting file must parse as Python.
+if ! python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$APP_DIR/main.py" 2>/dev/null; then
+    warn "main.py failed to parse after inject — rolling back"
+    ROLLBACK
+    fatal "install failed (main.py parse error)"
 fi
 
 # ─── 5. Seed env vars (only if absent) ─────────────────────────────────────
@@ -192,30 +218,68 @@ log "starting $COMPOSE_SERVICE"
 "${DC[@]}" up -d "$COMPOSE_SERVICE"
 
 # ─── 7. Health check ───────────────────────────────────────────────────────
-log "waiting up to ${HEALTH_TIMEOUT}s for $HEALTH_URL"
-ok=0
+log "waiting up to ${HEALTH_TIMEOUT}s for $HEALTH_URL (fallback: $HEALTH_FALLBACK, base: $BACKEND_BASE_URL)"
+
+# Returns 0 iff $1 returned an HTTP 2xx response (curl -f). Used for
+# /aima/health which is expected to return JSON 200.
+_strict_ok() {
+    curl -fsS --max-time 2 "$1" >/dev/null 2>&1
+}
+
+# Returns 0 iff curl successfully exchanged any HTTP response with $1 —
+# i.e. uvicorn / the host backend is answering at all (even with 4xx/5xx).
+# This is the right "is the backend alive?" question because some forks of
+# xservis don't expose /healthz, but they all serve *something* on /.
+_alive_ok() {
+    local code
+    code=$(curl -o /dev/null -s --max-time 2 -w '%{http_code}' "$1" 2>/dev/null || echo 000)
+    [[ -n "$code" && "$code" != "000" ]]
+}
+
+aima_ok=0
+backend_ok=0
 for i in $(seq 1 "$HEALTH_TIMEOUT"); do
-    if curl -fsS --max-time 2 "$HEALTH_URL" >/dev/null 2>&1; then
-        ok=1; log "AIMA healthy on /aima/health (after ${i}s)"; break
+    if _strict_ok "$HEALTH_URL"; then
+        aima_ok=1; backend_ok=1
+        log "AIMA healthy on /aima/health (after ${i}s)"
+        break
     fi
-    if curl -fsS --max-time 2 "$HEALTH_FALLBACK" >/dev/null 2>&1; then
-        # backend is alive but /aima/ didn't attach — keep waiting a bit
-        :
+    if [[ "$backend_ok" -ne 1 ]]; then
+        if _strict_ok "$HEALTH_FALLBACK" || _alive_ok "$BACKEND_BASE_URL"; then
+            backend_ok=1
+            # backend is alive; keep waiting for AIMA to attach
+        fi
     fi
     sleep 1
 done
 
-if [[ "$ok" -ne 1 ]]; then
+# Last-chance probe in case the backend only became alive in the final second.
+if [[ "$backend_ok" -ne 1 ]] \
+    && (_strict_ok "$HEALTH_FALLBACK" || _alive_ok "$BACKEND_BASE_URL"); then
+    backend_ok=1
+fi
+
+if [[ "$aima_ok" -ne 1 ]]; then
     warn "AIMA /aima/health unreachable after ${HEALTH_TIMEOUT}s"
-    if curl -fsS --max-time 2 "$HEALTH_FALLBACK" >/dev/null 2>&1; then
-        warn "but backend is alive on $HEALTH_FALLBACK — AIMA likely failed to attach"
-        warn "check container logs: ${DC[*]} logs --tail=200 $COMPOSE_SERVICE"
-        warn "AIMA_ENABLED can be set to 0 in $ENV_FILE to disable; rolling back code anyway."
+    log "---- last 50 lines of $COMPOSE_SERVICE container logs ----"
+    "${DC[@]}" logs --tail=50 "$COMPOSE_SERVICE" 2>&1 | sed 's/^/    /' >&2 || true
+    log "---- end of container logs ----"
+
+    if [[ "$backend_ok" -eq 1 ]]; then
+        warn "backend itself is alive on $HEALTH_FALLBACK — AIMA failed to attach but the host is up"
+        if [[ "$AIMA_STRICT_ROLLBACK" == "1" ]]; then
+            warn "AIMA_STRICT_ROLLBACK=1 → rolling back anyway"
+            ROLLBACK
+            fatal "install failed (strict mode) — backup restored from $BACKUP"
+        fi
+        warn "keeping backend running. Disable AIMA via 'AIMA_ENABLED=0' in $ENV_FILE if needed."
+        warn "to force rollback re-run with AIMA_STRICT_ROLLBACK=1."
+        warn "backup is preserved at $BACKUP"
     else
         warn "backend is also down — full rollback"
+        ROLLBACK
+        fatal "install failed — backup restored from $BACKUP"
     fi
-    ROLLBACK
-    fatal "install failed — backup restored from $BACKUP"
 fi
 
 # ─── 8. Done ───────────────────────────────────────────────────────────────

@@ -45,6 +45,31 @@ uv run aima serve --port 8765   # FastAPI on :8765 with 24/7 scheduler
 uv run pytest                # full test suite (no network needed)
 ```
 
+## Admin / dashboard endpoints
+
+When AIMA is attached to the host backend it also exposes a read-only
+`/aima/admin/...` surface for the operator UI:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /aima/admin/stats` | Top-bar counters: profile count, 24h reports, 24h success rate, open incidents, learning-table rows, distinct vantages/ASNs seen |
+| `GET /aima/admin/learning?min_attempts=N&limit=K` | Full learned-rules table — per `(asn, block_type, recipe)` row: `success_count`, `failure_count`, `observed_count`, `success_rate`, per-row `confidence` |
+| `GET /aima/admin/learning/progress` | Overall training progress as `percent_complete` blending coverage of `(ASN × block_type)` pairs, average per-row confidence, and recipe diversity |
+| `GET /aima/admin/telemetry/summary?hours=H` | Per-profile + per-block-type rollup over the last `H` hours: samples, successes, success-rate, average RTT/handshake/throughput |
+
+These endpoints have no built-in auth — protect them via the host's
+existing admin gate, the same way `/api/admin/*` is gated.
+
+## Always-on training
+
+The `slow_loop` runs every `AIMA_SLOW_LOOP_MINUTES` (default 60) and, in
+addition to detecting incidents, increments an `observed_count` for every
+recipe the detector keeps suggesting. This is a weak passive signal that
+pre-populates the learning table even when `AIMA_AUTO_APPLY=0`, so the
+admin dashboard can show "we're seeing X recommended for Y on ASN Z" right
+from day one. Real `success_count` / `failure_count` outcomes only get
+written by `apply.py` once auto-apply is turned on.
+
 ## How `aima demo` works
 
 It seeds 45 minutes of synthetic probe reports across 5 vantages
@@ -85,3 +110,22 @@ and the right `vantage`. The DigitalOcean baseline must remain incident-free.
   consulted when the deterministic catalog can't reach a confident verdict.
 * **No mutation engine yet.** Recipes are emitted as labels; the actual
   `apply.py` lands in the next PR once we have XS11 access.
+
+## Operator helpers
+
+These are companion shell scripts kept under `aima-autohealer/scripts/`.
+They are deliberately **not** invoked automatically — run them by hand on
+the production host.
+
+* `install_aima_autohealer.sh` — drop the `aima` package into the running
+  XSERVIS backend container, patch `main.py` to call `attach(app)`, seed
+  AIMA env vars, rebuild and health-check. Soft-fails when `/aima/health`
+  doesn't come up but the host's own `/healthz` does (i.e. AIMA failed to
+  attach but the backend stays alive). Set `AIMA_STRICT_ROLLBACK=1` to get
+  the legacy "always rollback on AIMA failure" behaviour.
+* `xs11_fixup.sh` — addresses the non-AIMA issues from the 2026-05-06
+  troubleshooting session: ensures the owner Telegram user exists in the
+  Postgres `users` table (using the **correct** `tg_id` column), guarantees
+  they have an `ACTIVE` subscription, optionally activates every existing
+  subscription (`ACTIVATE_ALL_SUBS=1`), and patches `bot.py:cmd_start` so
+  `/start` actually calls `_ensure_user` for new Telegram users.

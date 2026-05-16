@@ -90,4 +90,38 @@ class HealerScheduler:
         )
         for inc in incidents:
             self.store.upsert_incident(inc)
-        logger.info("slow_loop: %d reports, %d incidents", len(recent), len(incidents))
+
+        # Passive ("always-on") training: even when AIMA_AUTO_APPLY=0 we still
+        # want the dashboard to surface what the detector keeps recommending
+        # for each (vantage's ASN, block_type) pair. Increment a weak signal
+        # for every suggested recipe of every active incident in this batch.
+        observations = 0
+        for inc in incidents:
+            asn = self._asn_for_vantage(inc.vantage)
+            for recipe_id in inc.suggested_recipes:
+                self.store.record_observation(
+                    asn=asn,
+                    block_type=inc.block_type,
+                    recipe_id=recipe_id,
+                    note=f"slow_loop@{inc.id}",
+                )
+                observations += 1
+
+        logger.info(
+            "slow_loop: %d reports, %d incidents, %d observations recorded",
+            len(recent),
+            len(incidents),
+            observations,
+        )
+
+    def _asn_for_vantage(self, vantage_name: str | None) -> int | None:
+        """Map an incident's vantage label back to an ASN, when known.
+
+        Today the only vantage we know about is the local one (``self.vantage``);
+        external vantages would need their own lookup. Returning ``None`` means
+        "global / unspecified" and is recorded under ASN ``-1``.
+        """
+
+        if vantage_name and vantage_name == self.vantage.name:
+            return self.vantage.asn
+        return None

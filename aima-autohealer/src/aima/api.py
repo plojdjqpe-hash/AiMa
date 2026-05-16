@@ -16,6 +16,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, FastAPI, HTTPException
 
+from .admin import build_admin_router
 from .detector import detect_incidents
 from .probe import Vantage
 from .scheduler import HealerScheduler
@@ -111,6 +112,11 @@ def create_app(*, db_path: str | None = None, run_scheduler: bool = True) -> Fas
     app.include_router(
         build_router(lambda: store, lambda: vantage),
         prefix="/api",
+    )
+    app.include_router(
+        build_admin_router(lambda: store),
+        prefix="/api/admin",
+        tags=["admin"],
     )
     return app
 
