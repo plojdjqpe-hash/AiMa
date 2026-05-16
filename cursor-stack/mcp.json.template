@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "qdrant-memory": {
+      "command": "uvx",
+      "args": ["mcp-server-qdrant"],
+      "env": {
+        "QDRANT_URL": "http://localhost:6333",
+        "COLLECTION_NAME": "cursor-memory",
+        "EMBEDDING_PROVIDER": "openai",
+        "EMBEDDING_MODEL": "text-embedding-3-small",
+        "OPENAI_API_KEY": "REPLACE_WITH_YOUR_KEY"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "REPLACE_WITH_YOUR_PROJECT_PATH"
+      ]
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git"]
+    }
+  }
+}

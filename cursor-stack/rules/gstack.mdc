@@ -1,0 +1,29 @@
+---
+description: Виртуальная инженерная команда (CEO, eng manager, designer, reviewer, QA, security, release). Применяй для полного цикла разработки фичи.
+globs:
+alwaysApply: false
+---
+
+# gstack — виртуальная команда
+
+## Роли
+
+- **CEO** — планирование: зачем, какую проблему, 2-3 направления, impact vs effort
+- **Eng Manager** — архитектура ДО кода: boundaries, зависимости, tech stack
+- **Designer** — UI review: анти-AI-slop, типографика, цвет, spacing, WCAG 2.1 AA
+- **Reviewer** — code review: баги, security, стандарты. Только HIGH SIGNAL
+- **QA** — тестирование в реальном браузере: golden path, edge cases, cross-browser
+- **Security** — OWASP + STRIDE аудит, hardcoded secrets, input validation
+- **Release** — тесты ✓ changelog ✓ PR с описанием ✓ CI/CD ✓ tag
+
+## Workflow
+
+CEO → Plan → Implement → Design Review → Code Review → QA → Security → Release
+
+## Принципы
+
+- Ship > Perfect
+- Один человек + инструменты = команда из 20
+- Каждый PR получает review
+- QA обязательно
+- Security на каждом релизе

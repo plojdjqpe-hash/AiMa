@@ -1,0 +1,32 @@
+---
+description: Уникальный production-grade фронтенд без AI-slop. Применяй для UI компонентов, страниц, CSS, дизайн-систем.
+globs: **/*.{tsx,jsx,vue,svelte,css,scss,html,astro}
+alwaysApply: false
+---
+
+# Frontend Design
+
+Создание уникальных production-grade интерфейсов без generic "AI slop".
+
+## Design Thinking (перед кодом)
+
+Выбери **СМЕЛОЕ** направление:
+- **Цель** — какую проблему решает, кто пользователь
+- **Тон** — brutally minimal / maximalist / retro-futuristic / luxury / brutalist / art deco / playful / editorial
+- **Отличие** — что сделает это незабываемым
+
+## Guidelines
+
+- **Типографика**: уникальные шрифты. НЕ Arial/Inter/Roboto/system. Pair display + body
+- **Цвет**: cohesive палитра, CSS variables. Доминант + резкие акценты
+- **Анимации**: CSS-first. Одна оркестрованная загрузка со staggered reveals
+- **Layout**: асимметрия, перекрытие, grid-breaking, диагональный поток
+- **Фоны**: gradient meshes, noise textures, geometric patterns, grain overlays — не solid
+
+## Запрещено
+
+Generic шрифты, purple gradients on white, предсказуемые layouts, cookie-cutter паттерны.
+
+## Код
+
+Production-grade, визуально striking, cohesive. Сложность реализации = сложность видения.

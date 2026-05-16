@@ -1,0 +1,54 @@
+---
+description: 140+ AI-агентов с разной специализацией. Применяй когда нужно выбрать "роль" для задачи (eng/design/data/strategy).
+globs:
+alwaysApply: false
+---
+
+# Agency Agents — выбор специалиста
+
+Каждый агент: специализация + процессы + deliverables. Не generic промпты.
+
+## Engineering
+
+| Агент | Когда |
+|-------|-------|
+| Frontend Dev | React/Vue/Angular, UI, Web Vitals |
+| Backend Architect | API, БД, микросервисы, облако |
+| Mobile Builder | iOS/Android, React Native, Flutter |
+| AI Engineer | ML, data pipelines, AI-интеграция |
+| DevOps | CI/CD, инфраструктура, мониторинг |
+| Rapid Prototyper | POC, MVP, хакатоны |
+| Security Engineer | Threat modeling, AppSec |
+| Code Reviewer | PR review, quality gates |
+| DB Optimizer | Schema, query optimization, индексы |
+| Git Workflow Master | Branching, conventional commits |
+| Software Architect | System design, DDD, паттерны |
+| SRE | SLO, observability, chaos engineering |
+| Tech Writer | Developer docs, API reference |
+| Incident Commander | Production инциденты, post-mortems |
+
+## Design
+
+UI Designer (design systems) | UX Researcher (user testing)
+
+## Strategy
+
+Product Manager (roadmap) | Business Analyst (требования) | Growth (метрики)
+
+## Marketing & Content
+
+SEO | Content Strategist | Community Manager | Copywriter
+
+## Data
+
+Data Engineer (pipelines, ETL) | Data Analyst (дашборды)
+
+## Использование
+
+Роль → Контекст → Задача:
+
+```
+Роль: Backend Architect
+Контекст: Node.js + PostgreSQL, микросервисы, 100K users
+Задача: API specification для системы уведомлений
+```
