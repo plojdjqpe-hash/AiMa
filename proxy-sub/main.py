@@ -192,7 +192,7 @@ def parse_ss(line: str) -> dict | None:
             encoded_part, server_part = rest.rsplit("@", 1)
             # Try base64 decode
             try:
-                padding = 4 - len(encoded_part) % 4
+                padding = (4 - len(encoded_part) % 4) % 4
                 decoded = base64.urlsafe_b64decode(encoded_part + "=" * padding).decode()
                 method, password = decoded.split(":", 1)
             except Exception:
@@ -201,7 +201,7 @@ def parse_ss(line: str) -> dict | None:
         else:
             # Fully base64 encoded
             try:
-                padding = 4 - len(rest) % 4
+                padding = (4 - len(rest) % 4) % 4
                 decoded = base64.urlsafe_b64decode(rest + "=" * padding).decode()
                 if "@" in decoded:
                     cred_part, server_part = decoded.rsplit("@", 1)
@@ -219,7 +219,7 @@ def parse_ss(line: str) -> dict | None:
         else:
             return None
 
-        dedup_key = hashlib.md5(f"ss-{host}:{port}".encode()).hexdigest()[:12]
+        dedup_key = hashlib.md5(f"ss-{method}:{password}@{host}:{port}".encode()).hexdigest()[:12]
 
         score = 40
         if port in LTE_SAFE_PORTS:
@@ -250,7 +250,7 @@ def parse_ss(line: str) -> dict | None:
 async def fetch_configs() -> list[dict]:
     """Fetch configs from all sources, parse and deduplicate."""
     now = time.time()
-    if _cache["configs"] and (now - _cache["last_update"]) < CACHE_TTL:
+    if _cache["configs"] is not None and len(_cache["configs"]) >= 0 and _cache["last_update"] > 0 and (now - _cache["last_update"]) < CACHE_TTL:
         return _cache["configs"]
 
     all_lines = []
@@ -268,7 +268,7 @@ async def fetch_configs() -> list[dict]:
                 # Try base64 decode if it looks encoded
                 if not any(text.startswith(p) for p in ["vless://", "ss://", "vmess://", "trojan://", "//"]):
                     try:
-                        padding = 4 - len(text.strip()) % 4
+                        padding = (4 - len(text.strip()) % 4) % 4
                         decoded = base64.b64decode(text.strip() + "=" * padding).decode("utf-8", errors="ignore")
                         if any(decoded.startswith(p) for p in ["vless://", "ss://", "vmess://", "trojan://"]):
                             text = decoded
@@ -324,7 +324,9 @@ def build_subscription(configs: list[dict], network: str = "all",
             if c["port"] not in LTE_SAFE_PORTS and not port_set:
                 continue
         elif network == "wifi":
-            pass  # All configs work on wifi
+            # For WiFi: prefer WS/TLS, skip plain REALITY/TCP without TLS
+            if not c.get("is_tls") and not c.get("is_ws"):
+                continue
 
         # Port filter
         if port_set and c["port"] not in port_set:
@@ -352,63 +354,32 @@ def build_subscription(configs: list[dict], network: str = "all",
         "",
     ]
 
-    # Group configs with labels
-    lte_configs = [c for c in filtered if c["best_for"] == "lte"]
-    g3_configs = [c for c in filtered if c["best_for"] == "3g"]
-    wifi_configs = [c for c in filtered if c["best_for"] == "wifi"]
-    all_configs = [c for c in filtered if c["best_for"] == "all"]
+    # Label configs based on requested network or best_for
+    label_map = {
+        "lte": "📡LTE",
+        "3g": "📶3G",
+        "wifi": "🌐WiFi",
+        "all": "🔄Auto",
+    }
 
     counter = 1
-    if lte_configs:
-        for c in lte_configs:
-            raw = c["raw"]
-            # Rename with network tag
-            if "#" in raw:
-                raw_base = raw.rsplit("#", 1)[0]
-            else:
-                raw_base = raw
-            port_tag = f":{c['port']}"
-            sni_tag = c.get("sni", "")[:20] if c.get("sni") else ""
-            label = f"📡LTE-{counter} {sni_tag} {port_tag}"
-            lines.append(f"{raw_base}#{label}")
-            counter += 1
-            lines.append("")
+    for c in filtered:
+        raw = c["raw"]
+        if "#" in raw:
+            raw_base = raw.rsplit("#", 1)[0]
+        else:
+            raw_base = raw
 
-    if g3_configs:
-        for c in g3_configs:
-            raw = c["raw"]
-            if "#" in raw:
-                raw_base = raw.rsplit("#", 1)[0]
-            else:
-                raw_base = raw
-            label = f"📶3G-{counter} {c.get('sni', '')[:20]} :{c['port']}"
-            lines.append(f"{raw_base}#{label}")
-            counter += 1
-            lines.append("")
+        if network != "all":
+            prefix = label_map.get(network, "🔄Auto")
+        else:
+            prefix = label_map.get(c["best_for"], "🔄Auto")
 
-    if wifi_configs:
-        for c in wifi_configs:
-            raw = c["raw"]
-            if "#" in raw:
-                raw_base = raw.rsplit("#", 1)[0]
-            else:
-                raw_base = raw
-            label = f"🌐WiFi-{counter} {c.get('sni', '')[:20]} :{c['port']}"
-            lines.append(f"{raw_base}#{label}")
-            counter += 1
-            lines.append("")
-
-    if all_configs:
-        for c in all_configs:
-            raw = c["raw"]
-            if "#" in raw:
-                raw_base = raw.rsplit("#", 1)[0]
-            else:
-                raw_base = raw
-            label = f"🔄Auto-{counter} :{c['port']}"
-            lines.append(f"{raw_base}#{label}")
-            counter += 1
-            lines.append("")
+        sni_tag = c.get("sni", "")[:20] if c.get("sni") else ""
+        label = f"{prefix}-{counter} {sni_tag} :{c['port']}"
+        lines.append(f"{raw_base}#{label}")
+        counter += 1
+        lines.append("")
 
     return "\n".join(lines)
 
