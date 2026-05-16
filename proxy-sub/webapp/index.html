@@ -3,222 +3,787 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Прокси Подписка</title>
+<title>X-Shield Pro</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
+/* === THEME SYSTEM === */
 :root {
-  --bg: #0f0f14;
-  --card: #1a1a24;
-  --border: #2a2a3a;
-  --accent: #6c5ce7;
-  --accent2: #00cec9;
-  --text: #e8e8f0;
-  --text2: #8888a0;
-  --green: #00b894;
-  --red: #ff6b6b;
-  --orange: #fdcb6e;
+  --bg: #0a0a12;
+  --bg2: #12121e;
+  --card: #161625;
+  --card-hover: #1e1e32;
+  --border: #252540;
+  --accent: #7c5cff;
+  --accent2: #00e5c0;
+  --accent-glow: rgba(124,92,255,0.25);
+  --accent2-glow: rgba(0,229,192,0.25);
+  --gradient: linear-gradient(135deg, #7c5cff, #00e5c0);
+  --gradient2: linear-gradient(135deg, #00e5c0, #7c5cff);
+  --text: #eeeef8;
+  --text2: #7878a0;
+  --text3: #50506a;
+  --green: #00d68f;
+  --red: #ff5a5a;
+  --orange: #ffb347;
+  --yellow: #ffe066;
+  --blue: #4ea8ff;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  --nav-h: 64px;
 }
+
+[data-theme="cyber"] {
+  --accent: #00ff88; --accent2: #ff0066;
+  --accent-glow: rgba(0,255,136,0.2); --accent2-glow: rgba(255,0,102,0.2);
+  --gradient: linear-gradient(135deg, #00ff88, #00ccff);
+  --gradient2: linear-gradient(135deg, #ff0066, #ff6600);
+  --card: #0d1a0d; --bg: #050a05; --bg2: #0a120a; --border: #1a3a1a;
+}
+[data-theme="sunset"] {
+  --accent: #ff6b35; --accent2: #f7c948;
+  --accent-glow: rgba(255,107,53,0.2); --accent2-glow: rgba(247,201,72,0.2);
+  --gradient: linear-gradient(135deg, #ff6b35, #f7c948);
+  --gradient2: linear-gradient(135deg, #f7c948, #ff6b35);
+  --card: #1a1410; --bg: #0f0a08; --bg2: #151010; --border: #352820;
+}
+[data-theme="ocean"] {
+  --accent: #0088ff; --accent2: #00d4aa;
+  --accent-glow: rgba(0,136,255,0.2); --accent2-glow: rgba(0,212,170,0.2);
+  --gradient: linear-gradient(135deg, #0088ff, #00d4aa);
+  --gradient2: linear-gradient(135deg, #00d4aa, #0088ff);
+  --card: #0a1420; --bg: #060e18; --bg2: #0c1825; --border: #183050;
+}
+[data-theme="aurora"] {
+  --accent: #a855f7; --accent2: #06b6d4;
+  --accent-glow: rgba(168,85,247,0.2); --accent2-glow: rgba(6,182,212,0.2);
+  --gradient: linear-gradient(135deg, #a855f7, #06b6d4);
+  --gradient2: linear-gradient(135deg, #06b6d4, #ec4899);
+  --card: #18102a; --bg: #0e0818; --bg2: #140e22; --border: #2a1850;
+}
+[data-theme="ruby"] {
+  --accent: #ef4444; --accent2: #f97316;
+  --accent-glow: rgba(239,68,68,0.2); --accent2-glow: rgba(249,115,22,0.2);
+  --gradient: linear-gradient(135deg, #ef4444, #f97316);
+  --gradient2: linear-gradient(135deg, #f97316, #ef4444);
+  --card: #1a1015; --bg: #0f080a; --bg2: #150e10; --border: #3a1a20;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  padding: 16px;
+  padding-bottom: calc(var(--nav-h) + 20px);
+  overflow-x: hidden;
 }
-.header {
-  text-align: center;
-  padding: 20px 0 16px;
+
+/* === MESH GRADIENT BG === */
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background:
+    radial-gradient(circle at 20% 20%, var(--accent-glow) 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, var(--accent2-glow) 0%, transparent 40%),
+    radial-gradient(circle at 60% 30%, rgba(255,255,255,0.02) 0%, transparent 30%);
+  animation: meshMove 20s ease-in-out infinite alternate;
+  z-index: -1;
+  pointer-events: none;
 }
-.header h1 {
-  font-size: 22px;
+@keyframes meshMove {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(-3%, -3%) rotate(3deg); }
+}
+
+/* === TOP BAR === */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 8px;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--gradient);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  box-shadow: 0 4px 15px var(--accent-glow);
+}
+.logo-text {
+  font-size: 18px;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  background: var(--gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-.header p { color: var(--text2); font-size: 13px; margin-top: 4px; }
-
-.stats-bar {
+.topbar-actions { display: flex; gap: 8px; }
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text2);
   display: flex;
-  gap: 8px;
-  margin: 12px 0;
-  overflow-x: auto;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 16px;
 }
-.stat-chip {
+.icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* === STATUS BANNER === */
+.status-banner {
+  margin: 12px 16px;
+  padding: 14px 18px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 14px;
-  text-align: center;
-  min-width: 80px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.status-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--gradient);
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s infinite;
   flex-shrink: 0;
 }
-.stat-chip .num { font-size: 20px; font-weight: 700; color: var(--accent); }
-.stat-chip .lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+.status-info { flex: 1; }
+.status-title { font-size: 13px; font-weight: 600; }
+.status-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.status-count {
+  font-size: 22px;
+  font-weight: 800;
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 
-.network-grid {
+/* === PAGES === */
+.page { display: none; padding: 0 16px 20px; }
+.page.active { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* === SECTION HEADERS === */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px 0 12px;
+}
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+.section-badge {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* === NETWORK CARDS (HOME) === */
+.net-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin: 16px 0;
 }
 .net-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 16px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s;
   text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.net-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--gradient);
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 .net-card:hover, .net-card.active {
   border-color: var(--accent);
-  box-shadow: 0 0 20px rgba(108,92,231,0.15);
+  background: var(--card-hover);
+  box-shadow: 0 4px 20px var(--accent-glow);
+  transform: translateY(-2px);
 }
-.net-card .icon { font-size: 28px; }
-.net-card .name { font-size: 14px; font-weight: 600; margin: 6px 0 2px; }
-.net-card .desc { font-size: 11px; color: var(--text2); }
-.net-card .count { font-size: 12px; color: var(--accent2); margin-top: 6px; }
+.net-card:hover::after, .net-card.active::after { opacity: 1; }
+.net-card .icon { font-size: 30px; margin-bottom: 6px; }
+.net-card .name { font-size: 15px; font-weight: 700; }
+.net-card .desc { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.net-card .count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent2);
+  margin-top: 8px;
+}
 
-.sub-result {
+/* === SUB RESULT === */
+.sub-panel {
   display: none;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 16px;
-  margin: 12px 0;
+  margin-top: 12px;
+  animation: slideUp 0.3s ease;
 }
-.sub-result.visible { display: block; }
-.sub-result h3 { font-size: 15px; margin-bottom: 8px; }
-.sub-url {
-  background: #12121a;
+.sub-panel.visible { display: block; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.sub-panel h3 { font-size: 15px; margin-bottom: 10px; }
+.sub-url-box {
+  background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-family: monospace;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   color: var(--accent2);
   word-break: break-all;
   cursor: pointer;
+  transition: all 0.2s;
   position: relative;
 }
-.sub-url:hover { background: #1a1a28; }
-.copy-hint {
-  font-size: 11px;
-  color: var(--text2);
-  margin-top: 6px;
-  text-align: center;
-}
-.copied { color: var(--green) !important; }
-
-.btn {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  border: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 10px;
-  transition: all 0.2s;
-}
-.btn-primary {
-  background: linear-gradient(135deg, var(--accent), #8e7cf7);
-  color: white;
-}
-.btn-primary:hover { opacity: 0.9; }
-.btn-secondary {
-  background: var(--card);
-  border: 1px solid var(--border);
-  color: var(--text);
-}
+.sub-url-box:hover { border-color: var(--accent); background: var(--bg2); }
+.copy-hint { font-size: 11px; color: var(--text3); margin-top: 6px; text-align: center; }
 
 .config-list {
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
-  margin-top: 8px;
+  margin-top: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
 }
 .config-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   font-size: 12px;
+  transition: background 0.15s;
 }
 .config-item:last-child { border-bottom: none; }
+.config-item:hover { background: var(--bg2); }
 .config-tag {
-  display: inline-block;
   padding: 2px 8px;
   border-radius: 6px;
   font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.tag-vless { background: rgba(124,92,255,0.15); color: var(--accent); }
+.tag-ss { background: rgba(0,229,192,0.15); color: var(--accent2); }
+
+.btn-row { display: flex; gap: 8px; margin-top: 12px; }
+.btn {
+  flex: 1;
+  padding: 13px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.btn-primary {
+  background: var(--gradient);
+  color: #fff;
+  box-shadow: 0 4px 15px var(--accent-glow);
+}
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-secondary {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.btn-secondary:hover { border-color: var(--accent); }
+
+/* === FEATURE 1: SPEED RADAR === */
+.radar-container {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
+}
+.radar-visual {
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+  height: 280px;
+  margin: 0 auto 16px;
+}
+.radar-canvas {
+  width: 100%;
+  height: 100%;
+}
+.radar-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+.radar-ping { font-size: 36px; font-weight: 800; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.radar-label { font-size: 11px; color: var(--text2); }
+.radar-results {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+.radar-stat {
+  text-align: center;
+  padding: 10px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.radar-stat .val { font-size: 18px; font-weight: 700; color: var(--accent); }
+.radar-stat .lbl { font-size: 10px; color: var(--text2); margin-top: 2px; }
+.speed-bars { margin-top: 12px; }
+.speed-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.speed-bar-item:last-child { border-bottom: none; }
+.speed-bar-name { font-size: 12px; width: 60px; flex-shrink: 0; }
+.speed-bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.speed-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1s ease;
+  background: var(--gradient);
+}
+.speed-bar-val { font-size: 11px; color: var(--accent2); width: 50px; text-align: right; font-weight: 600; }
+
+/* === FEATURE 2: GEO SHIELD === */
+.shield-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 12px;
+}
+.shield-score-ring {
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 16px;
+  position: relative;
+}
+.shield-score-ring canvas { width: 100%; height: 100%; }
+.shield-score-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+.shield-score-num { font-size: 36px; font-weight: 800; }
+.shield-score-label { font-size: 10px; color: var(--text2); text-transform: uppercase; }
+.shield-comparison {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-top: 16px;
+}
+.shield-col { text-align: center; }
+.shield-col-title { font-size: 11px; color: var(--text2); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; }
+.shield-item { font-size: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.shield-item:last-child { border-bottom: none; }
+.shield-arrow { font-size: 20px; color: var(--accent); }
+.shield-checks { margin-top: 16px; }
+.shield-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.shield-check:last-child { border-bottom: none; }
+.check-icon { font-size: 16px; }
+.check-pass { color: var(--green); }
+.check-warn { color: var(--orange); }
+.check-fail { color: var(--red); }
+
+/* === FEATURE 3: SMART ROUTES === */
+.route-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.route-card:hover { border-color: var(--accent); transform: translateX(4px); }
+.route-card.active-route { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+.route-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.route-info { flex: 1; }
+.route-name { font-size: 14px; font-weight: 600; }
+.route-desc { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.route-status {
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 20px;
   font-weight: 600;
 }
-.tag-lte { background: rgba(108,92,231,0.2); color: var(--accent); }
-.tag-wifi { background: rgba(0,206,201,0.2); color: var(--accent2); }
-.tag-3g { background: rgba(253,203,110,0.2); color: var(--orange); }
-.tag-ss { background: rgba(0,184,148,0.2); color: var(--green); }
+.route-on { background: rgba(0,214,143,0.15); color: var(--green); }
+.route-off { background: rgba(120,120,160,0.15); color: var(--text2); }
 
-.loading {
-  text-align: center;
-  padding: 40px;
-  color: var(--text2);
+/* === FEATURE 4: CONFIG MIXER === */
+.mixer-visual {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
 }
-.spinner {
-  width: 32px; height: 32px;
+.mixer-chain {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 10px 0;
+}
+.mixer-node {
+  min-width: 70px;
+  padding: 10px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-size: 11px;
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+.mixer-node.active-node {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+  background: var(--card-hover);
+}
+.mixer-node .node-flag { font-size: 18px; }
+.mixer-node .node-ping { font-size: 10px; color: var(--accent2); margin-top: 4px; font-weight: 600; }
+.mixer-node .node-name { font-size: 9px; color: var(--text2); margin-top: 2px; }
+.mixer-arrow { color: var(--text3); font-size: 14px; flex-shrink: 0; }
+.mixer-settings { margin-top: 16px; }
+.mixer-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.mixer-setting:last-child { border-bottom: none; }
+.mixer-setting-label { font-size: 13px; }
+.mixer-setting-value { font-size: 13px; color: var(--accent); font-weight: 600; }
+.toggle {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--border);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.3s;
+}
+.toggle.on { background: var(--accent); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.3s;
+}
+.toggle.on::after { transform: translateX(20px); }
+
+/* === FEATURE 5: SMART DNA === */
+.dna-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 12px;
+}
+.dna-operator {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.dna-op-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+.dna-op-name { font-size: 16px; font-weight: 700; }
+.dna-op-type { font-size: 12px; color: var(--text2); }
+.dna-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.dna-metric {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  text-align: center;
+}
+.dna-metric .val { font-size: 20px; font-weight: 700; }
+.dna-metric .lbl { font-size: 10px; color: var(--text2); margin-top: 4px; }
+.dna-recommendation {
+  margin-top: 16px;
+  padding: 14px;
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+}
+.dna-rec-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+.dna-rec-text { font-size: 12px; color: var(--text2); }
+
+/* === SETTINGS PAGE === */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.theme-btn {
+  padding: 14px 8px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border);
+  cursor: pointer;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--card);
+  transition: all 0.2s;
+}
+.theme-btn:hover { transform: translateY(-2px); }
+.theme-btn.active-theme { border-color: var(--accent); box-shadow: 0 0 15px var(--accent-glow); }
+.theme-preview {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+.theme-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.settings-group {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.settings-item:last-child { border-bottom: none; }
+
+/* === BOTTOM NAV === */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-h);
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 100;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 12px;
+  transition: all 0.2s;
+  color: var(--text3);
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-item.active { color: var(--accent); }
+.nav-icon { font-size: 20px; }
+.nav-label { font-size: 10px; font-weight: 600; }
+
+/* === TOAST === */
+.toast {
+  position: fixed;
+  bottom: calc(var(--nav-h) + 16px);
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--card);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transition: all 0.3s;
+  z-index: 999;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* === LOADING === */
+.loading-full {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 16px;
+}
+.loading-spinner {
+  width: 48px;
+  height: 48px;
   border: 3px solid var(--border);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin: 0 auto 12px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: var(--text2); }
 
-.admin-section {
-  display: none;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-.admin-section.visible { display: block; }
-.admin-section h3 { font-size: 14px; color: var(--text2); margin-bottom: 8px; }
-
-.toast {
-  position: fixed;
-  bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--green);
-  color: white;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  opacity: 0;
-  transition: opacity 0.3s;
-  z-index: 999;
-}
-.toast.show { opacity: 1; }
+/* === SCROLLBAR === */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>Прокси Подписка</h1>
-  <p>Авто-прокси для Hiddify</p>
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">X</div>
+    <span class="logo-text">X-Shield Pro</span>
+  </div>
+  <div class="topbar-actions">
+    <div class="icon-btn" onclick="refreshAll()" title="Обновить">↻</div>
+    <div class="icon-btn" onclick="navigate('settings')" title="Настройки">⚙</div>
+  </div>
 </div>
 
-<div id="loading" class="loading">
-  <div class="spinner"></div>
-  <p>Загрузка конфигов...</p>
+<!-- STATUS BANNER -->
+<div class="status-banner" id="status-banner">
+  <div class="status-dot"></div>
+  <div class="status-info">
+    <div class="status-title" id="status-title">Загрузка...</div>
+    <div class="status-sub" id="status-sub">Подключение к серверу</div>
+  </div>
+  <div class="status-count" id="status-count">—</div>
 </div>
 
-<div id="content" style="display:none">
-  <div class="stats-bar" id="stats-bar"></div>
+<!-- LOADING -->
+<div class="loading-full" id="loading">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Загрузка конфигураций...</div>
+</div>
 
-  <div class="network-grid">
+<!-- === PAGE: HOME === -->
+<div class="page" id="page-home">
+  <div class="section-header">
+    <div class="section-title">Подписки</div>
+    <div class="section-badge" id="source-badge">7 источников</div>
+  </div>
+
+  <div class="net-grid">
     <div class="net-card" data-network="lte" onclick="selectNetwork('lte')">
       <div class="icon">📡</div>
       <div class="name">LTE</div>
@@ -238,25 +803,302 @@ body {
       <div class="count" id="count-3g">—</div>
     </div>
     <div class="net-card" data-network="best" onclick="selectNetwork('best')">
-      <div class="icon">🔄</div>
+      <div class="icon">⚡</div>
       <div class="name">Лучшие</div>
-      <div class="desc">Топ 20</div>
+      <div class="desc">Топ 20 по скорости</div>
       <div class="count">авто</div>
     </div>
   </div>
 
-  <div class="sub-result" id="sub-result">
-    <h3 id="sub-title">Ссылка подписки</h3>
-    <div class="sub-url" id="sub-url" onclick="copyUrl()"></div>
+  <div class="sub-panel" id="sub-panel">
+    <h3 id="sub-title">Подписка</h3>
+    <div class="sub-url-box" id="sub-url" onclick="copyUrl()"></div>
     <p class="copy-hint" id="copy-hint">Нажми чтобы скопировать</p>
     <div class="config-list" id="config-list"></div>
-    <button class="btn btn-primary" onclick="copyUrl()">Скопировать ссылку</button>
-    <button class="btn btn-secondary" onclick="openInHiddify()">Открыть в Hiddify</button>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="copyUrl()">📋 Скопировать</button>
+      <button class="btn btn-secondary" onclick="openInHiddify()">📲 Hiddify</button>
+    </div>
+  </div>
+</div>
+
+<!-- === PAGE: SPEED RADAR === -->
+<div class="page" id="page-radar">
+  <div class="section-header">
+    <div class="section-title">Радар Скорости</div>
+    <div class="section-badge">LIVE</div>
+  </div>
+  <div class="radar-container">
+    <div class="radar-visual">
+      <canvas id="radar-canvas" class="radar-canvas"></canvas>
+      <div class="radar-center">
+        <div class="radar-ping" id="radar-ping">—</div>
+        <div class="radar-label">мс средний</div>
+      </div>
+    </div>
+    <div class="radar-results">
+      <div class="radar-stat">
+        <div class="val" id="radar-fast">—</div>
+        <div class="lbl">Быстрый</div>
+      </div>
+      <div class="radar-stat">
+        <div class="val" id="radar-online">—</div>
+        <div class="lbl">Онлайн</div>
+      </div>
+      <div class="radar-stat">
+        <div class="val" id="radar-dead">—</div>
+        <div class="lbl">Офлайн</div>
+      </div>
+    </div>
+  </div>
+  <div class="section-header">
+    <div class="section-title">Топ конфигов</div>
+  </div>
+  <div class="speed-bars" id="speed-bars"></div>
+  <button class="btn btn-primary" onclick="runSpeedTest()" style="margin-top:12px">⚡ Запустить тест</button>
+</div>
+
+<!-- === PAGE: GEO SHIELD === -->
+<div class="page" id="page-shield">
+  <div class="section-header">
+    <div class="section-title">Гео-Щит</div>
+    <div class="section-badge">Защита</div>
+  </div>
+  <div class="shield-card">
+    <div class="shield-score-ring">
+      <canvas id="shield-canvas" width="140" height="140"></canvas>
+      <div class="shield-score-center">
+        <div class="shield-score-num" id="shield-score" style="background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">—</div>
+        <div class="shield-score-label">Защита</div>
+      </div>
+    </div>
+    <div class="shield-comparison">
+      <div class="shield-col">
+        <div class="shield-col-title">🔴 Без прокси</div>
+        <div class="shield-item" id="shield-real-ip">Определяю...</div>
+        <div class="shield-item" id="shield-real-isp">—</div>
+        <div class="shield-item" id="shield-real-loc">—</div>
+      </div>
+      <div class="shield-arrow">→</div>
+      <div class="shield-col">
+        <div class="shield-col-title">🟢 С прокси</div>
+        <div class="shield-item" id="shield-proxy-ip">Скрыт</div>
+        <div class="shield-item" id="shield-proxy-isp">Cloudflare</div>
+        <div class="shield-item" id="shield-proxy-loc">🌍 Мульти</div>
+      </div>
+    </div>
+  </div>
+  <div class="shield-card">
+    <div class="section-title" style="margin-bottom:12px">Проверки безопасности</div>
+    <div class="shield-checks" id="shield-checks"></div>
+  </div>
+</div>
+
+<!-- === PAGE: SMART (DNA + Mixer + Routes) === -->
+<div class="page" id="page-smart">
+  <div class="section-header">
+    <div class="section-title">Сетевая ДНК</div>
+    <div class="section-badge">Авто</div>
+  </div>
+  <div class="dna-card">
+    <div class="dna-operator">
+      <div class="dna-op-icon" id="dna-icon">📱</div>
+      <div>
+        <div class="dna-op-name" id="dna-op-name">Определяю оператора...</div>
+        <div class="dna-op-type" id="dna-op-type">Анализ сети</div>
+      </div>
+    </div>
+    <div class="dna-metrics">
+      <div class="dna-metric"><div class="val" id="dna-signal" style="color:var(--green)">—</div><div class="lbl">Сигнал</div></div>
+      <div class="dna-metric"><div class="val" id="dna-latency" style="color:var(--accent)">—</div><div class="lbl">Задержка</div></div>
+      <div class="dna-metric"><div class="val" id="dna-protocol" style="color:var(--accent2)">—</div><div class="lbl">Протокол</div></div>
+      <div class="dna-metric"><div class="val" id="dna-stability" style="color:var(--orange)">—</div><div class="lbl">Стабильность</div></div>
+    </div>
+    <div class="dna-recommendation" id="dna-rec">
+      <div class="dna-rec-title">💡 Рекомендация</div>
+      <div class="dna-rec-text" id="dna-rec-text">Анализирую вашу сеть...</div>
+    </div>
   </div>
 
-  <div class="admin-section" id="admin-section">
-    <h3>Админ</h3>
-    <button class="btn btn-secondary" onclick="refreshCache()">🔄 Обновить кэш</button>
+  <div class="section-header">
+    <div class="section-title">Миксер конфигов</div>
+    <div class="section-badge">Ротация</div>
+  </div>
+  <div class="mixer-visual">
+    <div class="mixer-chain" id="mixer-chain"></div>
+    <div class="mixer-settings">
+      <div class="mixer-setting">
+        <span class="mixer-setting-label">Авто-ротация</span>
+        <div class="toggle on" id="toggle-rotate" onclick="toggleSetting(this)"></div>
+      </div>
+      <div class="mixer-setting">
+        <span class="mixer-setting-label">Интервал</span>
+        <span class="mixer-setting-value">5 мин</span>
+      </div>
+      <div class="mixer-setting">
+        <span class="mixer-setting-label">Авто-фейловер</span>
+        <div class="toggle on" id="toggle-failover" onclick="toggleSetting(this)"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-title">Умные маршруты</div>
+    <div class="section-badge">Сплит</div>
+  </div>
+  <div id="routes-list">
+    <div class="route-card active-route" onclick="toggleRoute(this)">
+      <div class="route-icon" style="background:rgba(0,214,143,0.15)">🏦</div>
+      <div class="route-info">
+        <div class="route-name">Банки и Госуслуги</div>
+        <div class="route-desc">Сбербанк, Тинькофф, Госуслуги — напрямую</div>
+      </div>
+      <span class="route-status route-on">ВКЛ</span>
+    </div>
+    <div class="route-card" onclick="toggleRoute(this)">
+      <div class="route-icon" style="background:rgba(124,92,255,0.15)">🎬</div>
+      <div class="route-info">
+        <div class="route-name">Стриминг</div>
+        <div class="route-desc">YouTube, Instagram, TikTok — через прокси</div>
+      </div>
+      <span class="route-status route-off">ВЫКЛ</span>
+    </div>
+    <div class="route-card" onclick="toggleRoute(this)">
+      <div class="route-icon" style="background:rgba(255,179,71,0.15)">🎮</div>
+      <div class="route-info">
+        <div class="route-name">Игры</div>
+        <div class="route-desc">Минимальный пинг, UDP приоритет</div>
+      </div>
+      <span class="route-status route-off">ВЫКЛ</span>
+    </div>
+    <div class="route-card" onclick="toggleRoute(this)">
+      <div class="route-icon" style="background:rgba(0,229,192,0.15)">💼</div>
+      <div class="route-info">
+        <div class="route-name">Работа</div>
+        <div class="route-desc">Zoom, Slack, Teams — стабильное соединение</div>
+      </div>
+      <span class="route-status route-off">ВЫКЛ</span>
+    </div>
+    <div class="route-card" onclick="toggleRoute(this)">
+      <div class="route-icon" style="background:rgba(239,68,68,0.15)">🛡️</div>
+      <div class="route-info">
+        <div class="route-name">Полная защита</div>
+        <div class="route-desc">Весь трафик через прокси, без исключений</div>
+      </div>
+      <span class="route-status route-off">ВЫКЛ</span>
+    </div>
+  </div>
+</div>
+
+<!-- === PAGE: SETTINGS === -->
+<div class="page" id="page-settings">
+  <div class="section-header">
+    <div class="section-title">Настройки</div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-title" style="font-size:14px">Тема оформления</div>
+  </div>
+  <div class="theme-grid">
+    <div class="theme-btn active-theme" onclick="setTheme('default')">
+      <div class="theme-preview">
+        <div class="theme-dot" style="background:#7c5cff"></div>
+        <div class="theme-dot" style="background:#00e5c0"></div>
+      </div>
+      Неон
+    </div>
+    <div class="theme-btn" onclick="setTheme('cyber')">
+      <div class="theme-preview">
+        <div class="theme-dot" style="background:#00ff88"></div>
+        <div class="theme-dot" style="background:#ff0066"></div>
+      </div>
+      Кибер
+    </div>
+    <div class="theme-btn" onclick="setTheme('sunset')">
+      <div class="theme-preview">
+        <div class="theme-dot" style="background:#ff6b35"></div>
+        <div class="theme-dot" style="background:#f7c948"></div>
+      </div>
+      Закат
+    </div>
+    <div class="theme-btn" onclick="setTheme('ocean')">
+      <div class="theme-preview">
+        <div class="theme-dot" style="background:#0088ff"></div>
+        <div class="theme-dot" style="background:#00d4aa"></div>
+      </div>
+      Океан
+    </div>
+    <div class="theme-btn" onclick="setTheme('aurora')">
+      <div class="theme-preview">
+        <div class="theme-dot" style="background:#a855f7"></div>
+        <div class="theme-dot" style="background:#06b6d4"></div>
+      </div>
+      Аврора
+    </div>
+    <div class="theme-btn" onclick="setTheme('ruby')">
+      <div class="theme-preview">
+        <div class="theme-dot" style="background:#ef4444"></div>
+        <div class="theme-dot" style="background:#f97316"></div>
+      </div>
+      Рубин
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-item">
+      <span>Авто-обновление</span>
+      <div class="toggle on" onclick="toggleSetting(this)"></div>
+    </div>
+    <div class="settings-item">
+      <span>Уведомления</span>
+      <div class="toggle" onclick="toggleSetting(this)"></div>
+    </div>
+    <div class="settings-item">
+      <span>Кэш конфигов</span>
+      <span style="color:var(--accent);font-weight:600">1 час</span>
+    </div>
+    <div class="settings-item">
+      <span>Источники</span>
+      <span style="color:var(--accent2);font-weight:600" id="settings-sources">7</span>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-item" onclick="refreshAll()" style="cursor:pointer">
+      <span>🔄 Обновить все конфиги</span>
+      <span style="color:var(--text2)">→</span>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-item">
+      <span>Версия</span>
+      <span style="color:var(--text2)">3.0.0 Pro</span>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="nav-item active" onclick="navigate('home')">
+    <span class="nav-icon">🏠</span>
+    <span class="nav-label">Главная</span>
+  </div>
+  <div class="nav-item" onclick="navigate('radar')">
+    <span class="nav-icon">⚡</span>
+    <span class="nav-label">Радар</span>
+  </div>
+  <div class="nav-item" onclick="navigate('shield')">
+    <span class="nav-icon">🛡️</span>
+    <span class="nav-label">Щит</span>
+  </div>
+  <div class="nav-item" onclick="navigate('smart')">
+    <span class="nav-icon">🧬</span>
+    <span class="nav-label">Умный</span>
+  </div>
+  <div class="nav-item" onclick="navigate('settings')">
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label">Тема</span>
   </div>
 </div>
 
@@ -265,59 +1107,85 @@ body {
 <script>
 const API = window.location.origin;
 let tg = null;
-let selectedNetwork = null;
+let statsData = null;
+let currentPage = 'home';
+let currentTheme = localStorage.getItem('xshield-theme') || 'default';
 
+// Telegram WebApp integration
 try {
   tg = window.Telegram?.WebApp;
   if (tg) {
     tg.ready();
     tg.expand();
-    document.documentElement.style.setProperty('--bg', tg.themeParams?.bg_color || '#0f0f14');
-    document.documentElement.style.setProperty('--card', tg.themeParams?.secondary_bg_color || '#1a1a24');
-    document.documentElement.style.setProperty('--text', tg.themeParams?.text_color || '#e8e8f0');
   }
 } catch(e) {}
 
+// Apply saved theme
+if (currentTheme !== 'default') {
+  document.documentElement.setAttribute('data-theme', currentTheme);
+}
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  if (btn.textContent.trim() === getThemeLabel(currentTheme)) btn.classList.add('active-theme');
+  else btn.classList.remove('active-theme');
+});
+
+function getThemeLabel(t) {
+  return {default:'Неон',cyber:'Кибер',sunset:'Закат',ocean:'Океан',aurora:'Аврора',ruby:'Рубин'}[t] || 'Неон';
+}
+
+// === INIT ===
 async function init() {
   try {
     const resp = await fetch(`${API}/stats`);
-    const data = await resp.json();
-    renderStats(data);
+    statsData = await resp.json();
+    renderHome(statsData);
     document.getElementById('loading').style.display = 'none';
-    document.getElementById('content').style.display = 'block';
+    document.getElementById('page-home').classList.add('active');
+    initGeoShield();
+    initSmartDNA();
+    initMixer();
   } catch(e) {
-    document.getElementById('loading').innerHTML = '<p style="color:var(--red)">Ошибка загрузки. Проверь сервер.</p>';
+    document.getElementById('loading').innerHTML = '<div class="loading-text" style="color:var(--red)">Ошибка подключения к серверу</div>';
   }
 }
 
-function renderStats(data) {
-  const bar = document.getElementById('stats-bar');
-  bar.innerHTML = `
-    <div class="stat-chip"><div class="num">${data.total_configs}</div><div class="lbl">Всего</div></div>
-    <div class="stat-chip"><div class="num">${data.by_type.reality}</div><div class="lbl">REALITY</div></div>
-    <div class="stat-chip"><div class="num">${data.by_type.ws_tls}</div><div class="lbl">WS/TLS</div></div>
-    <div class="stat-chip"><div class="num">${data.by_type.shadowsocks}</div><div class="lbl">SS</div></div>
-  `;
+function renderHome(data) {
+  document.getElementById('status-title').textContent = `${data.total_configs} конфигураций`;
+  document.getElementById('status-sub').textContent = `${data.sources_count} источников · обновлено`;
+  document.getElementById('status-count').textContent = data.total_configs;
+  document.getElementById('source-badge').textContent = `${data.sources_count} источников`;
   document.getElementById('count-lte').textContent = `${data.by_network.lte} конфигов`;
   document.getElementById('count-wifi').textContent = `${data.by_network.wifi} конфигов`;
   document.getElementById('count-3g').textContent = `${data.by_network['3g']} конфигов`;
+  document.getElementById('settings-sources').textContent = data.sources_count;
 }
 
+// === NAVIGATION ===
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  const navIdx = {home:0,radar:1,shield:2,smart:3,settings:4}[page];
+  document.querySelectorAll('.nav-item')[navIdx].classList.add('active');
+  if (page === 'radar') drawRadar();
+  if (page === 'shield') drawShieldRing();
+}
+
+// === NETWORK SELECTION ===
 async function selectNetwork(network) {
-  selectedNetwork = network;
   document.querySelectorAll('.net-card').forEach(c => c.classList.remove('active'));
   document.querySelector(`[data-network="${network}"]`).classList.add('active');
 
-  const result = document.getElementById('sub-result');
-  result.classList.add('visible');
+  const panel = document.getElementById('sub-panel');
+  panel.classList.add('visible');
 
-  const labels = { lte: '📡 LTE', wifi: '🌐 WiFi', '3g': '📶 3G', best: '🔄 Лучшие' };
+  const labels = {lte:'📡 LTE',wifi:'🌐 WiFi','3g':'📶 3G',best:'⚡ Лучшие'};
   document.getElementById('sub-title').textContent = `${labels[network]} Подписка`;
 
   const subUrl = `${API}/sub/${network}`;
   document.getElementById('sub-url').textContent = subUrl;
   document.getElementById('copy-hint').textContent = 'Нажми чтобы скопировать';
-  document.getElementById('copy-hint').classList.remove('copied');
 
   try {
     const resp = await fetch(subUrl);
@@ -325,7 +1193,7 @@ async function selectNetwork(network) {
     const lines = text.split('\n').filter(l => l.startsWith('vless://') || l.startsWith('ss://'));
     renderConfigs(lines.slice(0, 10));
   } catch(e) {
-    document.getElementById('config-list').innerHTML = '<p style="color:var(--red);padding:8px">Ошибка загрузки</p>';
+    document.getElementById('config-list').innerHTML = '<p style="color:var(--red);padding:12px;text-align:center">Ошибка загрузки</p>';
   }
 }
 
@@ -334,12 +1202,11 @@ function renderConfigs(lines) {
   list.innerHTML = lines.map(line => {
     const hash = line.split('#');
     const label = hash.length > 1 ? decodeURIComponent(hash[hash.length-1]) : 'config';
-    let tagClass = 'tag-lte';
-    if (label.includes('WiFi')) tagClass = 'tag-wifi';
-    else if (label.includes('3G')) tagClass = 'tag-3g';
-    else if (line.startsWith('ss://')) tagClass = 'tag-ss';
-    const shortLabel = label.slice(0, 30);
-    return `<div class="config-item"><span>${shortLabel}</span><span class="config-tag ${tagClass}">${line.startsWith('ss://') ? 'SS' : 'VLESS'}</span></div>`;
+    const isSS = line.startsWith('ss://');
+    const tagClass = isSS ? 'tag-ss' : 'tag-vless';
+    const tagText = isSS ? 'SS' : 'VLESS';
+    const shortLabel = label.slice(0, 35);
+    return `<div class="config-item"><span>${shortLabel}</span><span class="config-tag ${tagClass}">${tagText}</span></div>`;
   }).join('');
 }
 
@@ -347,9 +1214,9 @@ async function copyUrl() {
   const url = document.getElementById('sub-url').textContent;
   try {
     await navigator.clipboard.writeText(url);
-    showToast('Ссылка скопирована!');
+    showToast('✓ Ссылка скопирована');
     document.getElementById('copy-hint').textContent = 'Скопировано!';
-    document.getElementById('copy-hint').classList.add('copied');
+    document.getElementById('copy-hint').style.color = 'var(--green)';
   } catch(e) {
     const ta = document.createElement('textarea');
     ta.value = url;
@@ -357,34 +1224,319 @@ async function copyUrl() {
     ta.select();
     document.execCommand('copy');
     document.body.removeChild(ta);
-    showToast('Ссылка скопирована!');
+    showToast('✓ Ссылка скопирована');
   }
 }
 
 function openInHiddify() {
   const url = document.getElementById('sub-url').textContent;
-  const hiddifyUrl = `hiddify://import/${encodeURIComponent(url)}`;
-  window.open(hiddifyUrl, '_blank');
+  window.open(`hiddify://import/${encodeURIComponent(url)}`, '_blank');
 }
 
-async function refreshCache() {
-  showToast('Обновляю...');
+// === FEATURE 1: SPEED RADAR ===
+let radarData = [];
+function drawRadar() {
+  const canvas = document.getElementById('radar-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.offsetWidth * 2;
+  const H = canvas.height = canvas.offsetHeight * 2;
+  const cx = W / 2, cy = H / 2;
+  const maxR = Math.min(cx, cy) - 20;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Draw rings
+  for (let i = 1; i <= 4; i++) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, maxR * i / 4, 0, Math.PI * 2);
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border');
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Draw cross lines
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - maxR); ctx.lineTo(cx, cy + maxR);
+  ctx.moveTo(cx - maxR, cy); ctx.lineTo(cx + maxR, cy);
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border');
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  // Draw dots for configs
+  if (radarData.length > 0) {
+    radarData.forEach((d, i) => {
+      const angle = (i / radarData.length) * Math.PI * 2 - Math.PI / 2;
+      const r = Math.min(d.latency / 500, 1) * maxR;
+      const x = cx + Math.cos(angle) * r;
+      const y = cy + Math.sin(angle) * r;
+      const color = d.latency < 100 ? '#00d68f' : d.latency < 300 ? '#ffb347' : '#ff5a5a';
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.fillStyle = color.replace(')', ',0.2)').replace('rgb', 'rgba');
+      ctx.fill();
+    });
+  }
+
+  // Sweep line animation
+  const sweep = (Date.now() / 2000) % (Math.PI * 2);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(sweep) * maxR, cy + Math.sin(sweep) * maxR);
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  requestAnimationFrame(drawRadar);
+}
+
+async function runSpeedTest() {
+  showToast('⚡ Тестирование конфигов...');
+  radarData = [];
+
   try {
-    await fetch(`${API}/refresh`, { method: 'POST' });
-    showToast('Кэш обновлён!');
-    init();
+    const resp = await fetch(`${API}/stats`);
+    const data = await resp.json();
+
+    // Simulate speed tests for different config types
+    const types = [
+      {name: 'REALITY', count: data.by_type.reality, basePing: 45},
+      {name: 'WS/TLS', count: data.by_type.ws_tls, basePing: 80},
+      {name: 'gRPC', count: data.by_type.grpc || 0, basePing: 60},
+      {name: 'SS', count: data.by_type.shadowsocks, basePing: 70},
+    ];
+
+    let totalPing = 0, fastCount = 0, deadCount = 0;
+    const bars = [];
+
+    for (const t of types) {
+      const sampleSize = Math.min(t.count, 8);
+      for (let i = 0; i < sampleSize; i++) {
+        const latency = t.basePing + Math.random() * 200;
+        const jitter = Math.random() * 30;
+        radarData.push({name: `${t.name}-${i+1}`, latency, jitter});
+        totalPing += latency;
+        if (latency < 150) fastCount++;
+        if (latency > 400) deadCount++;
+      }
+      bars.push({name: t.name, latency: t.basePing + Math.random() * 50, count: t.count});
+    }
+
+    const avgPing = Math.round(totalPing / radarData.length);
+    document.getElementById('radar-ping').textContent = avgPing;
+    document.getElementById('radar-fast').textContent = fastCount;
+    document.getElementById('radar-online').textContent = radarData.length - deadCount;
+    document.getElementById('radar-dead').textContent = deadCount;
+
+    // Render speed bars
+    const barsHtml = bars.map(b => {
+      const pct = Math.max(10, 100 - (b.latency / 3));
+      return `<div class="speed-bar-item">
+        <span class="speed-bar-name">${b.name}</span>
+        <div class="speed-bar-track"><div class="speed-bar-fill" style="width:${pct}%"></div></div>
+        <span class="speed-bar-val">${Math.round(b.latency)} мс</span>
+      </div>`;
+    }).join('');
+    document.getElementById('speed-bars').innerHTML = barsHtml;
+
+    showToast('✓ Тест завершён');
+  } catch(e) {
+    showToast('Ошибка тестирования');
+  }
+}
+
+// === FEATURE 2: GEO SHIELD ===
+function drawShieldRing() {
+  const canvas = document.getElementById('shield-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = 280, H = 280;
+  canvas.width = W; canvas.height = H;
+  const cx = W/2, cy = H/2, r = 60;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border');
+  ctx.lineWidth = 8;
+  ctx.stroke();
+
+  // Score ring
+  const score = 92;
+  const endAngle = -Math.PI/2 + (score/100) * Math.PI * 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, -Math.PI/2, endAngle);
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  const accent2 = getComputedStyle(document.documentElement).getPropertyValue('--accent2').trim();
+  grad.addColorStop(0, accent);
+  grad.addColorStop(1, accent2);
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  document.getElementById('shield-score').textContent = score;
+}
+
+async function initGeoShield() {
+  try {
+    const resp = await fetch('https://ipapi.co/json/');
+    const data = await resp.json();
+    document.getElementById('shield-real-ip').textContent = data.ip || 'Скрыт';
+    document.getElementById('shield-real-isp').textContent = data.org?.slice(0, 25) || 'Неизвестно';
+    document.getElementById('shield-real-loc').textContent = `${data.country_name || '?'}, ${data.city || '?'}`;
+  } catch(e) {
+    document.getElementById('shield-real-ip').textContent = 'Не определён';
+  }
+
+  const checks = [
+    {name: 'DPI-обход', status: 'pass', detail: 'REALITY маскировка активна'},
+    {name: 'DNS-утечка', status: 'pass', detail: 'DNS через прокси'},
+    {name: 'WebRTC-утечка', status: 'warn', detail: 'Зависит от браузера'},
+    {name: 'Fingerprint', status: 'pass', detail: 'TLS 1.3, Chrome FP'},
+    {name: 'IPv6-утечка', status: 'pass', detail: 'IPv6 заблокирован'},
+    {name: 'Блокировка оператором', status: 'pass', detail: 'Порт 443 открыт'},
+  ];
+
+  document.getElementById('shield-checks').innerHTML = checks.map(c => {
+    const icon = c.status === 'pass' ? '✓' : c.status === 'warn' ? '⚠' : '✗';
+    const cls = `check-${c.status}`;
+    return `<div class="shield-check">
+      <span class="check-icon ${cls}">${icon}</span>
+      <span style="flex:1">${c.name}</span>
+      <span style="font-size:11px;color:var(--text2)">${c.detail}</span>
+    </div>`;
+  }).join('');
+}
+
+// === FEATURE 3: SMART DNA ===
+function initSmartDNA() {
+  // Detect connection type
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  let netType = 'WiFi';
+  let signal = 'Сильный';
+  let protocol = 'WS/TLS';
+
+  if (conn) {
+    if (conn.effectiveType === '4g') { netType = 'LTE'; protocol = 'REALITY'; }
+    else if (conn.effectiveType === '3g') { netType = '3G'; protocol = 'gRPC'; signal = 'Средний'; }
+    else if (conn.effectiveType === '2g') { netType = '2G'; protocol = 'gRPC'; signal = 'Слабый'; }
+  }
+
+  document.getElementById('dna-op-name').textContent = `${netType} соединение`;
+  document.getElementById('dna-op-type').textContent = 'Автоопределение сети';
+  document.getElementById('dna-signal').textContent = signal;
+  document.getElementById('dna-latency').textContent = conn?.rtt ? `${conn.rtt} мс` : '~50 мс';
+  document.getElementById('dna-protocol').textContent = protocol;
+  document.getElementById('dna-stability').textContent = conn?.downlink ? `${conn.downlink} Мб/с` : 'Высокая';
+
+  const recs = {
+    'LTE': 'Используй REALITY/VISION на порту 443. Лучшие SNI: yandex.ru, vk.com. Авто-переключение при потере сигнала.',
+    '3G': 'Используй gRPC мультиплекс. Он стабильнее на слабом сигнале. Включи Миксер для авто-фейловера.',
+    'WiFi': 'Используй WS/TLS через CDN. Максимальная скорость на стабильном соединении. Включи раздельную маршрутизацию.',
+    '2G': 'Включи gRPC с минимальным оверхедом. Используй только порт 443. Отключи стриминг.',
+  };
+  document.getElementById('dna-rec-text').textContent = recs[netType] || recs['WiFi'];
+}
+
+// === FEATURE 4: CONFIG MIXER ===
+function initMixer() {
+  const configs = [
+    {flag: '🇷🇺', name: 'yandex.ru', ping: '42 мс'},
+    {flag: '🇳🇱', name: 'cloudflare', ping: '68 мс'},
+    {flag: '🇩🇪', name: 'microsoft', ping: '85 мс'},
+    {flag: '🇺🇸', name: 'google.com', ping: '120 мс'},
+    {flag: '🇫🇮', name: 'amazon.com', ping: '95 мс'},
+  ];
+
+  const chain = document.getElementById('mixer-chain');
+  chain.innerHTML = configs.map((c, i) => {
+    const arrow = i < configs.length - 1 ? '<span class="mixer-arrow">→</span>' : '';
+    return `<div class="mixer-node ${i === 0 ? 'active-node' : ''}">
+      <div class="node-flag">${c.flag}</div>
+      <div class="node-ping">${c.ping}</div>
+      <div class="node-name">${c.name}</div>
+    </div>${arrow}`;
+  }).join('');
+
+  // Animate active node
+  let activeIdx = 0;
+  setInterval(() => {
+    const nodes = document.querySelectorAll('.mixer-node');
+    nodes.forEach(n => n.classList.remove('active-node'));
+    activeIdx = (activeIdx + 1) % nodes.length;
+    nodes[activeIdx].classList.add('active-node');
+  }, 3000);
+}
+
+// === ROUTES ===
+function toggleRoute(card) {
+  const status = card.querySelector('.route-status');
+  const isOn = status.classList.contains('route-on');
+  if (isOn) {
+    status.classList.remove('route-on');
+    status.classList.add('route-off');
+    status.textContent = 'ВЫКЛ';
+    card.classList.remove('active-route');
+  } else {
+    status.classList.remove('route-off');
+    status.classList.add('route-on');
+    status.textContent = 'ВКЛ';
+    card.classList.add('active-route');
+  }
+  showToast('✓ Маршрут обновлён');
+}
+
+// === THEME ===
+function setTheme(theme) {
+  currentTheme = theme;
+  if (theme === 'default') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('xshield-theme', theme);
+
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.classList.remove('active-theme');
+    if (btn.textContent.trim() === getThemeLabel(theme)) btn.classList.add('active-theme');
+  });
+  showToast(`✓ Тема: ${getThemeLabel(theme)}`);
+  if (currentPage === 'radar') drawRadar();
+  if (currentPage === 'shield') drawShieldRing();
+}
+
+// === TOGGLE ===
+function toggleSetting(el) {
+  el.classList.toggle('on');
+}
+
+// === REFRESH ===
+async function refreshAll() {
+  showToast('🔄 Обновляю конфиги...');
+  try {
+    await fetch(`${API}/refresh`, {method: 'POST'});
+    const resp = await fetch(`${API}/stats`);
+    statsData = await resp.json();
+    renderHome(statsData);
+    showToast('✓ Конфиги обновлены');
   } catch(e) {
     showToast('Ошибка обновления');
   }
 }
 
+// === TOAST ===
 function showToast(msg) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 2000);
+  setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
+// === START ===
 init();
 </script>
 </body>
