@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Proxy Subscription</title>
+<title>Прокси Подписка</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root {
@@ -206,13 +206,13 @@ body {
 <body>
 
 <div class="header">
-  <h1>Proxy Subscription</h1>
-  <p>Auto-proxy for Hiddify</p>
+  <h1>Прокси Подписка</h1>
+  <p>Авто-прокси для Hiddify</p>
 </div>
 
 <div id="loading" class="loading">
   <div class="spinner"></div>
-  <p>Loading configs...</p>
+  <p>Загрузка конфигов...</p>
 </div>
 
 <div id="content" style="display:none">
@@ -234,29 +234,29 @@ body {
     <div class="net-card" data-network="3g" onclick="selectNetwork('3g')">
       <div class="icon">📶</div>
       <div class="name">3G</div>
-      <div class="desc">gRPC multiplex</div>
+      <div class="desc">gRPC мультиплекс</div>
       <div class="count" id="count-3g">—</div>
     </div>
     <div class="net-card" data-network="best" onclick="selectNetwork('best')">
       <div class="icon">🔄</div>
-      <div class="name">Best</div>
-      <div class="desc">Top 20</div>
-      <div class="count">auto</div>
+      <div class="name">Лучшие</div>
+      <div class="desc">Топ 20</div>
+      <div class="count">авто</div>
     </div>
   </div>
 
   <div class="sub-result" id="sub-result">
-    <h3 id="sub-title">Subscription URL</h3>
+    <h3 id="sub-title">Ссылка подписки</h3>
     <div class="sub-url" id="sub-url" onclick="copyUrl()"></div>
-    <p class="copy-hint" id="copy-hint">Tap to copy</p>
+    <p class="copy-hint" id="copy-hint">Нажми чтобы скопировать</p>
     <div class="config-list" id="config-list"></div>
-    <button class="btn btn-primary" onclick="copyUrl()">Copy URL to Clipboard</button>
-    <button class="btn btn-secondary" onclick="openInHiddify()">Open in Hiddify</button>
+    <button class="btn btn-primary" onclick="copyUrl()">Скопировать ссылку</button>
+    <button class="btn btn-secondary" onclick="openInHiddify()">Открыть в Hiddify</button>
   </div>
 
   <div class="admin-section" id="admin-section">
-    <h3>Admin</h3>
-    <button class="btn btn-secondary" onclick="refreshCache()">🔄 Refresh Cache</button>
+    <h3>Админ</h3>
+    <button class="btn btn-secondary" onclick="refreshCache()">🔄 Обновить кэш</button>
   </div>
 </div>
 
@@ -286,21 +286,21 @@ async function init() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
   } catch(e) {
-    document.getElementById('loading').innerHTML = '<p style="color:var(--red)">Failed to load. Check server.</p>';
+    document.getElementById('loading').innerHTML = '<p style="color:var(--red)">Ошибка загрузки. Проверь сервер.</p>';
   }
 }
 
 function renderStats(data) {
   const bar = document.getElementById('stats-bar');
   bar.innerHTML = `
-    <div class="stat-chip"><div class="num">${data.total_configs}</div><div class="lbl">Total</div></div>
+    <div class="stat-chip"><div class="num">${data.total_configs}</div><div class="lbl">Всего</div></div>
     <div class="stat-chip"><div class="num">${data.by_type.reality}</div><div class="lbl">REALITY</div></div>
     <div class="stat-chip"><div class="num">${data.by_type.ws_tls}</div><div class="lbl">WS/TLS</div></div>
     <div class="stat-chip"><div class="num">${data.by_type.shadowsocks}</div><div class="lbl">SS</div></div>
   `;
-  document.getElementById('count-lte').textContent = `${data.by_network.lte} configs`;
-  document.getElementById('count-wifi').textContent = `${data.by_network.wifi} configs`;
-  document.getElementById('count-3g').textContent = `${data.by_network['3g']} configs`;
+  document.getElementById('count-lte').textContent = `${data.by_network.lte} конфигов`;
+  document.getElementById('count-wifi').textContent = `${data.by_network.wifi} конфигов`;
+  document.getElementById('count-3g').textContent = `${data.by_network['3g']} конфигов`;
 }
 
 async function selectNetwork(network) {
@@ -311,12 +311,12 @@ async function selectNetwork(network) {
   const result = document.getElementById('sub-result');
   result.classList.add('visible');
 
-  const labels = { lte: '📡 LTE', wifi: '🌐 WiFi', '3g': '📶 3G', best: '🔄 Best' };
-  document.getElementById('sub-title').textContent = `${labels[network]} Subscription`;
+  const labels = { lte: '📡 LTE', wifi: '🌐 WiFi', '3g': '📶 3G', best: '🔄 Лучшие' };
+  document.getElementById('sub-title').textContent = `${labels[network]} Подписка`;
 
   const subUrl = `${API}/sub/${network}`;
   document.getElementById('sub-url').textContent = subUrl;
-  document.getElementById('copy-hint').textContent = 'Tap to copy';
+  document.getElementById('copy-hint').textContent = 'Нажми чтобы скопировать';
   document.getElementById('copy-hint').classList.remove('copied');
 
   try {
@@ -325,7 +325,7 @@ async function selectNetwork(network) {
     const lines = text.split('\n').filter(l => l.startsWith('vless://') || l.startsWith('ss://'));
     renderConfigs(lines.slice(0, 10));
   } catch(e) {
-    document.getElementById('config-list').innerHTML = '<p style="color:var(--red);padding:8px">Error loading</p>';
+    document.getElementById('config-list').innerHTML = '<p style="color:var(--red);padding:8px">Ошибка загрузки</p>';
   }
 }
 
@@ -347,8 +347,8 @@ async function copyUrl() {
   const url = document.getElementById('sub-url').textContent;
   try {
     await navigator.clipboard.writeText(url);
-    showToast('URL copied!');
-    document.getElementById('copy-hint').textContent = 'Copied!';
+    showToast('Ссылка скопирована!');
+    document.getElementById('copy-hint').textContent = 'Скопировано!';
     document.getElementById('copy-hint').classList.add('copied');
   } catch(e) {
     const ta = document.createElement('textarea');
@@ -357,7 +357,7 @@ async function copyUrl() {
     ta.select();
     document.execCommand('copy');
     document.body.removeChild(ta);
-    showToast('URL copied!');
+    showToast('Ссылка скопирована!');
   }
 }
 
@@ -368,13 +368,13 @@ function openInHiddify() {
 }
 
 async function refreshCache() {
-  showToast('Refreshing...');
+  showToast('Обновляю...');
   try {
     await fetch(`${API}/refresh`, { method: 'POST' });
-    showToast('Cache refreshed!');
+    showToast('Кэш обновлён!');
     init();
   } catch(e) {
-    showToast('Error refreshing');
+    showToast('Ошибка обновления');
   }
 }
 
