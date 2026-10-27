@@ -8,18 +8,21 @@ Telegram Bot for Proxy Subscription Service
 """
 
 import asyncio
-import os
 import logging
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.client.default import DefaultBotProperties
-from aiogram.filters import Command, CommandStart
-from aiogram.types import (
-    InlineKeyboardMarkup, InlineKeyboardButton,
-    WebAppInfo, CallbackQuery, BotCommand,
-)
-from aiogram.enums import ParseMode
+import os
 
 import httpx
+from aiogram import Bot, Dispatcher, F, types
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from aiogram.filters import Command, CommandStart
+from aiogram.types import (
+    BotCommand,
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    WebAppInfo,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,24 +30,80 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 API_BASE = os.getenv("PROXY_SUB_API", "http://127.0.0.1:8000")
 WEBAPP_URL = os.getenv("WEBAPP_URL", "")
-ADMIN_IDS = set(map(int, os.getenv("ADMIN_IDS", "").split(","))) if os.getenv("ADMIN_IDS") else set()
+# Public URL that Telegram users can open (API_BASE is usually a local address).
+PUBLIC_URL = os.getenv("PUBLIC_URL", "").rstrip("/")
+REFRESH_TOKEN = os.getenv("REFRESH_TOKEN", "")
 
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
+def parse_admin_ids(raw: str) -> set[int]:
+    ids = set()
+    for part in raw.replace(" ", "").split(","):
+        if part.lstrip("-").isdigit():
+            ids.add(int(part))
+        elif part:
+            logger.warning("Ignoring invalid ADMIN_IDS entry: %r", part)
+    return ids
+
+
+ADMIN_IDS = parse_admin_ids(os.getenv("ADMIN_IDS", ""))
+
 dp = Dispatcher()
 
 
-async def api_get(path: str) -> dict | str | None:
+def public_base() -> str:
+    return PUBLIC_URL or API_BASE.rstrip("/")
+
+
+def is_public_url(url: str) -> bool:
+    """Telegram rejects URL buttons pointing to localhost/private hosts."""
+    from urllib.parse import urlparse
+    host = (urlparse(url).hostname or "").lower()
+    if not host or host == "localhost" or host.endswith(".local"):
+        return False
+    import ipaddress
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        return ipaddress.ip_address(host).is_global
+    except ValueError:
+        return True
+
+
+LINK_SCHEMES = ("vless://", "vmess://", "trojan://", "ss://", "hysteria2://", "hy2://", "tuic://")
+
+
+def stats_extra(data: dict) -> str:
+    """Health and geography lines shared by the /stats command and the stats button."""
+    hl = data.get("health") or {}
+    lines = []
+    if hl:
+        lines.append(
+            f"✅ Живых: <b>{hl.get('alive', 0)}</b> · мёртвых: {hl.get('dead', 0)} · "
+            f"медиана: {hl.get('latency_ms_median') or '—'} мс"
+        )
+    proto = data.get("by_protocol") or {}
+    if proto:
+        lines.append("Протоколы: " + ", ".join(f"{k} {v}" for k, v in sorted(proto.items(), key=lambda kv: -kv[1])))
+    countries = data.get("by_country") or {}
+    if countries:
+        lines.append("Страны: " + ", ".join(f"{k} {v}" for k, v in list(countries.items())[:8]))
+    return "\n".join(lines)
+
+
+def user_id(obj) -> int | None:
+    return obj.from_user.id if obj.from_user else None
+
+
+async def api_get(path: str, with_headers: bool = False):
+    """GET from the local API; with ``with_headers`` returns ``(body, headers)``."""
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.get(f"{API_BASE}{path}")
             if resp.status_code == 200:
                 ct = resp.headers.get("content-type", "")
-                if "json" in ct:
-                    return resp.json()
-                return resp.text
+                body = resp.json() if "json" in ct and "format=" not in path else resp.text
+                return (body, resp.headers) if with_headers else body
     except Exception as e:
         logger.error(f"API error: {e}")
-    return None
+    return (None, {}) if with_headers else None
 
 
 def main_keyboard() -> InlineKeyboardMarkup:
@@ -79,17 +138,26 @@ def admin_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
+def sub_url_for(network: str, fmt: str = "") -> str:
+    return f"{public_base()}/sub/{network}" + (f"?format={fmt}" if fmt else "")
+
+
+FORMAT_BUTTONS = (("Clash / Mihomo", "clash"), ("sing-box", "singbox"), ("Xray JSON", "xray"))
+
+
 def sub_link_keyboard(network: str) -> InlineKeyboardMarkup:
-    sub_url = f"{API_BASE}/sub/{network}" if network != "best" else f"{API_BASE}/sub/best"
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📋 Копировать ссылку подписки", url=sub_url)],
-        [InlineKeyboardButton(text="« Назад", callback_data="back_main")],
-    ])
+    sub_url = sub_url_for(network)
+    rows = []
+    if is_public_url(sub_url):
+        rows.append([InlineKeyboardButton(text="🔗 Открыть ссылку подписки", url=sub_url)])
+        rows.append([InlineKeyboardButton(text=label, url=sub_url_for(network, fmt)) for label, fmt in FORMAT_BUTTONS])
+    rows.append([InlineKeyboardButton(text="« Назад", callback_data="back_main")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
-    is_admin = message.from_user.id in ADMIN_IDS
+    is_admin = user_id(message) in ADMIN_IDS
     text = (
         "🔑 <b>Proxy Subscription Bot</b>\n\n"
         "Автоматические прокси-конфигурации для Hiddify.\n"
@@ -106,7 +174,7 @@ async def cmd_start(message: types.Message):
 
 @dp.message(Command("admin"))
 async def cmd_admin(message: types.Message):
-    if message.from_user.id not in ADMIN_IDS:
+    if user_id(message) not in ADMIN_IDS:
         await message.answer("⛔ Нет доступа")
         return
     await message.answer("🔧 <b>Панель управления</b>", reply_markup=admin_keyboard())
@@ -150,33 +218,35 @@ async def cmd_stats(message: types.Message):
         f"📡 LTE: {data['by_network']['lte']}\n"
         f"🌐 WiFi: {data['by_network']['wifi']}\n"
         f"📶 3G: {data['by_network']['3g']}\n\n"
-        f"Источников: {data['sources_count']}\n"
-        f"Обновлено: {data.get('last_update', 'N/A')}"
+        f"{stats_extra(data)}\n\n"
+        f"Источников: {data.get('sources_ok', data['sources_count'])}/{data['sources_count']} работают\n"
+        f"Обновлено: {data.get('last_update') or 'N/A'}"
     )
     await message.answer(text)
 
 
 async def send_subscription(message: types.Message, network: str, label: str):
     wait_msg = await message.answer(f"⏳ Загружаю {label} конфиги...")
-    path = f"/sub/{network}"
-    data = await api_get(path)
+    data, headers = await api_get(f"/sub/{network}?format=uri", with_headers=True)
     if not data:
         await wait_msg.edit_text(f"❌ Не удалось загрузить {label} конфиги")
         return
 
-    lines = [l for l in str(data).splitlines() if l.startswith("vless://") or l.startswith("ss://")]
+    lines = [ln for ln in str(data).splitlines() if ln.startswith(LINK_SCHEMES)]
     count = len(lines)
-    sub_url = f"{API_BASE}{path}"
+    live = headers.get("x-live-nodes", "?")
+    sub_url = sub_url_for(network)
 
     text = (
         f"{label} <b>Подписка</b>\n\n"
-        f"Конфигов: <b>{count}</b>\n\n"
-        f"<b>Как добавить в Hiddify:</b>\n"
-        f"1. Открой Hiddify\n"
+        f"Узлов: <b>{count}</b> (проверено живых: <b>{live}</b>)\n\n"
+        f"<b>Как добавить:</b>\n"
+        f"1. Открой клиент (Hiddify, v2rayNG, Happ, Clash, sing-box)\n"
         f"2. Нажми + → Добавить подписку\n"
         f"3. Вставь ссылку:\n"
         f"<code>{sub_url}</code>\n\n"
-        f"Подписка обновляется каждый час автоматически."
+        f"Формат выбирается по клиенту автоматически. Кнопки ниже — прямые ссылки на Clash, sing-box и Xray JSON.\n"
+        f"Подписка обновляется каждый час, узлы перепроверяются каждые 10 минут."
     )
     await wait_msg.edit_text(text, reply_markup=sub_link_keyboard(network))
 
@@ -222,7 +292,8 @@ async def cb_stats(callback: CallbackQuery):
         f"SS: {data['by_type']['shadowsocks']}\n\n"
         f"📡 LTE: {data['by_network']['lte']} | "
         f"🌐 WiFi: {data['by_network']['wifi']} | "
-        f"📶 3G: {data['by_network']['3g']}"
+        f"📶 3G: {data['by_network']['3g']}\n\n"
+        f"{stats_extra(data)}"
     )
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="« Назад", callback_data="back_main")],
@@ -240,7 +311,7 @@ async def cb_back(callback: CallbackQuery):
 
 @dp.callback_query(F.data == "admin_sources")
 async def cb_sources(callback: CallbackQuery):
-    if callback.from_user.id not in ADMIN_IDS:
+    if user_id(callback) not in ADMIN_IDS:
         await callback.answer("⛔ Нет доступа", show_alert=True)
         return
     await callback.answer()
@@ -254,14 +325,17 @@ async def cb_sources(callback: CallbackQuery):
 
 @dp.callback_query(F.data == "admin_refresh")
 async def cb_refresh(callback: CallbackQuery):
-    if callback.from_user.id not in ADMIN_IDS:
+    if user_id(callback) not in ADMIN_IDS:
         await callback.answer("⛔ Нет доступа", show_alert=True)
         return
     await callback.answer("🔄 Обновляю...")
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            await client.post(f"{API_BASE}/refresh")
-        await callback.message.edit_text("✅ Кэш обновлён", reply_markup=admin_keyboard())
+            headers = {"X-Refresh-Token": REFRESH_TOKEN} if REFRESH_TOKEN else {}
+            resp = await client.post(f"{API_BASE}/refresh", headers=headers)
+            resp.raise_for_status()
+            total = resp.json().get("total_configs", 0)
+        await callback.message.edit_text(f"✅ Кэш обновлён: {total} конфигов", reply_markup=admin_keyboard())
     except Exception:
         await callback.message.edit_text("❌ Ошибка обновления", reply_markup=admin_keyboard())
 
@@ -271,10 +345,10 @@ async def send_sub_callback(callback: CallbackQuery, network: str, label: str):
     path = f"/sub/{network}"
     data = await api_get(path)
     if not data:
-        await callback.message.edit_text(f"❌ Ошибка", reply_markup=main_keyboard())
+        await callback.message.edit_text("❌ Ошибка", reply_markup=main_keyboard())
         return
-    lines = [l for l in str(data).splitlines() if l.startswith("vless://") or l.startswith("ss://")]
-    sub_url = f"{API_BASE}{path}"
+    lines = [ln for ln in str(data).splitlines() if ln.startswith(("vless://", "ss://"))]
+    sub_url = sub_url_for(network)
     text = (
         f"{label} <b>Подписка</b> ({len(lines)} конфигов)\n\n"
         f"<b>Ссылка для Hiddify:</b>\n"
@@ -284,7 +358,7 @@ async def send_sub_callback(callback: CallbackQuery, network: str, label: str):
     await callback.message.edit_text(text, reply_markup=sub_link_keyboard(network))
 
 
-async def set_commands():
+async def set_commands(bot: Bot):
     commands = [
         BotCommand(command="start", description="Главное меню"),
         BotCommand(command="lte", description="📡 LTE конфиги"),
@@ -300,7 +374,8 @@ async def main():
     if not BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN not set!")
         return
-    await set_commands()
+    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    await set_commands(bot)
     logger.info("Bot starting...")
     await dp.start_polling(bot)
 
