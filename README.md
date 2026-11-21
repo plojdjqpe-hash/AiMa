@@ -95,5 +95,6 @@ python main.py
 - Endpoints: `POST/GET /tasks`, `GET/PATCH/DELETE /tasks/{id}`, `POST /tasks/{id}/cancel|retry|read|comments`, `GET /tasks/{id}/history`, `GET /tasks/stats`, `GET/POST /pairs`, `GET/PATCH/DELETE /pairs/{id}`, `GET /agents`, `GET /events`.
 - Filters on `GET /tasks`: `status`, `priority`, `agent`, `pair_id`, `tag`, `q`, `unread`, `overdue`, `sort`, `order`, `limit`, `offset`.
 - Permissions: set `AI_ROUTER_API_TOKEN` (writes) and optionally `AI_ROUTER_READ_TOKEN` (reads); pass as `X-API-Key`.
+- `serve` refuses to listen on a non-loopback `HOST` (e.g. `0.0.0.0`) unless `AI_ROUTER_API_TOKEN` is set (override: `AI_ROUTER_ALLOW_OPEN=1`).
 
 Tests: `cd ai-router && pip install -r requirements-dev.txt && pytest`.

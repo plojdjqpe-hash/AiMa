@@ -251,3 +251,34 @@ def test_activity_log_and_overview(service, engine):
     ov = {o["agent"]: o for o in service.agent_overview()}
     assert ov["analyst"]["total"] == 1 and ov["analyst"]["unread"] == 1
     assert service.stats()["by_status"] == {"done": 1}
+
+
+def test_is_approved_rejects_negations():
+    from tasks.engine import is_approved
+
+    assert is_approved("APPROVED")
+    assert is_approved("Approved - looks good")
+    for bad in ("DISAPPROVED", "Unapproved", "NOT APPROVED", "NOT_APPROVED", "CHANGES_REQUESTED", "",
+                "Changes requested; not approved"):
+        assert not is_approved(bad), bad
+
+
+def test_task_history_is_bounded():
+    from tasks.models import HISTORY_LIMIT, AssignmentMode, Task
+
+    t = Task(title="x", mode=AssignmentMode.SINGLE)
+    for i in range(HISTORY_LIMIT + 50):
+        t.log("e", str(i))
+    assert len(t.history) == HISTORY_LIMIT
+    assert t.history[-1].message == str(HISTORY_LIMIT + 49)
+
+
+def test_serve_refuses_public_bind_without_token(monkeypatch):
+    import main
+
+    monkeypatch.delenv("AI_ROUTER_ALLOW_OPEN", raising=False)
+    assert main._bind_is_safe("127.0.0.1", "")
+    assert not main._bind_is_safe("0.0.0.0", "")
+    assert main._bind_is_safe("0.0.0.0", "tok")
+    monkeypatch.setenv("AI_ROUTER_ALLOW_OPEN", "1")
+    assert main._bind_is_safe("0.0.0.0", "")

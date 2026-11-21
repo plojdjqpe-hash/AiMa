@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import ipaddress
 import json
 from urllib.parse import parse_qsl, unquote
 
@@ -23,6 +24,33 @@ SCHEMES = {
     "hy2": "hysteria2",
     "tuic": "tuic",
 }
+
+
+_BAD_HOST_SUFFIXES = (".local", ".localhost", ".internal", ".lan", ".home.arpa")
+
+
+def valid_endpoint(host: str, port: object) -> bool:
+    """Reject nodes that cannot work or would make us probe our own network.
+
+    Public lists regularly contain junk like ``@:443``, port ``0``/``99999`` or
+    ``127.0.0.1``/``10.x``/``192.168.x`` addresses.  Probing those turns the health
+    checker into an SSRF scanner of the server's own network, and serving them to
+    users is useless, so they are dropped at parse time.
+    """
+    if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
+        return False
+    host = (host or "").strip().strip("[]").rstrip(".").lower()
+    if not host or any(ch.isspace() for ch in host) or "/" in host or "@" in host:
+        return False
+    if host == "localhost" or host.endswith(_BAD_HOST_SUFFIXES):
+        return False
+    try:
+        ip = ipaddress.ip_address(host.split("%", 1)[0])
+    except ValueError:
+        return True  # a domain name
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    return ip.is_global and not ip.is_multicast
 
 
 def b64decode_any(text: str) -> str:

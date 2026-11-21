@@ -17,6 +17,7 @@ import httpx
 GEO_URL = os.getenv("GEO_URL", "https://api.country.is")
 GEO_ENABLED = os.getenv("GEO_LOOKUP", "1") != "0"
 GEO_TTL = 7 * 24 * 3600
+DNS_TIMEOUT = float(os.getenv("GEO_DNS_TIMEOUT", "5"))
 
 _ip_cache: dict[str, tuple[str | None, float]] = {}
 _FLAG_RE = re.compile("([\U0001F1E6-\U0001F1FF])([\U0001F1E6-\U0001F1FF])")
@@ -70,9 +71,11 @@ async def _resolve_ip(host: str) -> str | None:
     except OSError:
         pass
     try:
-        info = await asyncio.get_running_loop().getaddrinfo(host, None, type=socket.SOCK_STREAM)
+        info = await asyncio.wait_for(
+            asyncio.get_running_loop().getaddrinfo(host, None, type=socket.SOCK_STREAM), DNS_TIMEOUT
+        )
         return info[0][4][0]
-    except OSError:
+    except (OSError, TimeoutError, IndexError, UnicodeError):
         return None
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import concurrent.futures as cf
 import logging
+import re
 import threading
 from collections.abc import Callable
 
@@ -37,9 +38,17 @@ class AttemptTimeout(Exception):
     pass
 
 
+_APPROVED_RE = re.compile(r"(?<![A-Z_])APPROVED(?![A-Z_])")
+_NEGATIVE_RE = re.compile(r"\b(NOT|NO|NEVER|UN|DIS)[\s_-]*APPROVED|CHANGES_REQUESTED")
+
+
 def is_approved(review: str) -> bool:
+    """APPROVED as a whole word on the first line, and no negation.
+
+    The old substring check accepted "DISAPPROVED", "UNAPPROVED" and "NOT_APPROVED".
+    """
     first = review.strip().splitlines()[0].upper() if review.strip() else ""
-    return "APPROVED" in first and "CHANGES_REQUESTED" not in first and "NOT APPROVED" not in first
+    return bool(_APPROVED_RE.search(first)) and not _NEGATIVE_RE.search(first)
 
 
 class TaskEngine:

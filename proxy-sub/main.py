@@ -8,6 +8,7 @@ import asyncio
 import base64
 import contextlib
 import hashlib
+import hmac
 import math
 import os
 import pathlib
@@ -29,6 +30,7 @@ from nodes import (
     parse_tuic,
     parse_vmess,
     scheme_of,
+    valid_endpoint,
 )
 
 REFRESH_INTERVAL = int(os.getenv("REFRESH_INTERVAL", "600"))
@@ -44,6 +46,7 @@ SUPPORT_URL = os.getenv("SUPPORT_URL", "https://xfreedom.ink")
 PROFILE_INTERVAL = int(os.getenv("PROFILE_UPDATE_INTERVAL", "1"))
 SUB_TOTAL_BYTES = int(os.getenv("SUB_TOTAL_BYTES", "10737418240000000"))
 SUB_EXPIRE_DAYS = int(os.getenv("SUB_EXPIRE_DAYS", "365"))
+REFRESH_COOLDOWN = float(os.getenv("REFRESH_COOLDOWN", "60"))
 
 _bg_tasks: set[asyncio.Task] = set()
 
@@ -325,7 +328,17 @@ def decode_source(text: str) -> str:
 
 
 def parse_line(line: str) -> dict | None:
-    """Parse one share link of any supported protocol into the common node dict."""
+    """Parse one share link of any supported protocol into the common node dict.
+
+    Nodes with an empty host, an impossible port or a private/loopback address are dropped.
+    """
+    node = _parse_any(line)
+    if node is None or not valid_endpoint(node.get("host", ""), node.get("port")):
+        return None
+    return node
+
+
+def _parse_any(line: str) -> dict | None:
     scheme = scheme_of(line)
     if scheme == "vless":
         return parse_vless(line)
@@ -725,8 +738,15 @@ async def health_endpoint():
 async def refresh_cache(x_refresh_token: str | None = Header(None)):
     """Force refresh config cache. Protected by REFRESH_TOKEN if it is set."""
     expected = os.getenv("REFRESH_TOKEN", "")
-    if expected and x_refresh_token != expected:
+    authorized = bool(expected) and x_refresh_token is not None and hmac.compare_digest(
+        x_refresh_token.encode(), expected.encode()
+    )
+    if expected and not authorized:
         raise HTTPException(status_code=403, detail="invalid refresh token")
+    if not authorized and _cache["last_update"] and time.time() - _cache["last_update"] < REFRESH_COOLDOWN:
+        # Public (token-less) refresh is rate limited: every call re-downloads all sources
+        # and re-probes hundreds of nodes, so an open endpoint is an easy amplifier.
+        return {"status": "ok", "total_configs": len(_cache["configs"]), "cached": True}
     configs = await fetch_configs(force=True)
     if os.getenv("DISABLE_BACKGROUND", "") != "1":
         _spawn(_probe_and_geo(candidate_nodes(configs)))

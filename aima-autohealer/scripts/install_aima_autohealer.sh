@@ -184,6 +184,8 @@ add_env AIMA_SNAPSHOT_DIR /opt/xservis/data/aima_snapshots
 add_env AIMA_FAST_LOOP_MINUTES 5
 add_env AIMA_SLOW_LOOP_MINUTES 60
 add_env AIMA_VANTAGE_NAME xs11
+# /aima write endpoints require this token (see README "API access token")
+add_env AIMA_API_TOKEN "$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 
 # ─── 6. Build & deploy ─────────────────────────────────────────────────────
 log "rebuilding $COMPOSE_SERVICE"

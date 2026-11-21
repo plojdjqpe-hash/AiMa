@@ -39,6 +39,8 @@ class TaskStatus(str, Enum):
     TIMED_OUT = "timed_out"
 
 
+HISTORY_LIMIT = 200  # per-task history entries kept (the global activity log is separate)
+
 TERMINAL = {TaskStatus.DONE, TaskStatus.FAILED, TaskStatus.CANCELLED, TaskStatus.TIMED_OUT}
 ACTIVE = {TaskStatus.RUNNING, TaskStatus.REVIEW}
 
@@ -141,6 +143,9 @@ class Task(BaseModel):
     def log(self, type_: str, message: str, actor: str = "system", **data: Any) -> Event:
         ev = Event(task_id=self.id, type=type_, message=message, actor=actor, data=data)
         self.history.append(ev)
+        if len(self.history) > HISTORY_LIMIT:
+            # keep the task JSON bounded: retries/pair rounds would otherwise grow it forever
+            del self.history[: len(self.history) - HISTORY_LIMIT]
         self.updated_at = ev.ts
         return ev
 

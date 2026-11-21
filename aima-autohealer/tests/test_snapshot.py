@@ -35,7 +35,7 @@ async def test_take_then_restore_round_trip(tmp_path: Path) -> None:
     fake._inbounds[1]["port"] = 9999
 
     n = await restore_snapshot(fake, snap.snapshot_id, store=store)  # type: ignore[arg-type]
-    assert n == 2
+    assert n == 1  # only the inbound that actually changed is pushed back
     assert fake._inbounds[1]["port"] == 443
 
 

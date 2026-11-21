@@ -92,6 +92,13 @@ def interactive() -> None:
             print(f"\nError: {exc}\n")
 
 
+def _bind_is_safe(host: str, api_token: str) -> bool:
+    """An open write API is only acceptable on loopback (or when explicitly allowed)."""
+    if api_token or os.environ.get("AI_ROUTER_ALLOW_OPEN") == "1":
+        return True
+    return host in ("127.0.0.1", "localhost", "::1")
+
+
 def serve() -> None:
     import uvicorn
 
@@ -100,6 +107,14 @@ def serve() -> None:
     from tasks.service import TaskService
     from tasks.store import TaskStore
 
+    host = os.environ.get("HOST", "127.0.0.1")
+    if not _bind_is_safe(host, os.environ.get("AI_ROUTER_API_TOKEN", "")):
+        logger.error(
+            "Refusing to listen on %s without AI_ROUTER_API_TOKEN: anyone could create tasks "
+            "and spend the OpenRouter balance. Set the token (or AI_ROUTER_ALLOW_OPEN=1).",
+            host,
+        )
+        sys.exit(1)
     llm = LLM.from_config(_require_api_key())
     redis_mem = _connect_redis()
     if redis_mem is None:
@@ -110,7 +125,7 @@ def serve() -> None:
     engine = TaskEngine(service, lambda agent, prompt: AGENTS[agent].run(llm, prompt))
     worker = Worker(engine, concurrency=int(os.environ.get("TASK_WORKERS", "2")))
     app = create_app(service, worker=worker)
-    uvicorn.run(app, host=os.environ.get("HOST", "127.0.0.1"), port=int(os.environ.get("PORT", "8080")))
+    uvicorn.run(app, host=host, port=int(os.environ.get("PORT", "8080")))
 
 
 def main() -> None:

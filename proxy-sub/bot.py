@@ -67,6 +67,12 @@ def is_public_url(url: str) -> bool:
         return True
 
 
+def webapp_url_ok(url: str) -> bool:
+    """Telegram only accepts https:// Mini App URLs; an http:// one makes the whole keyboard
+    (and therefore /start) fail with "Bad Request", so such a button is skipped instead."""
+    return url.lower().startswith("https://") and is_public_url(url)
+
+
 LINK_SCHEMES = ("vless://", "vmess://", "trojan://", "ss://", "hysteria2://", "hy2://", "tuic://")
 
 
@@ -118,7 +124,7 @@ def main_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="📊 Статистика", callback_data="stats"),
         ],
     ]
-    if WEBAPP_URL:
+    if webapp_url_ok(WEBAPP_URL):
         buttons.append([
             InlineKeyboardButton(
                 text="🌍 Открыть WebApp",
@@ -330,24 +336,27 @@ async def cb_refresh(callback: CallbackQuery):
         return
     await callback.answer("🔄 Обновляю...")
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        # a forced refresh downloads every source (30 s timeout each), so 30 s was too short
+        async with httpx.AsyncClient(timeout=120.0) as client:
             headers = {"X-Refresh-Token": REFRESH_TOKEN} if REFRESH_TOKEN else {}
             resp = await client.post(f"{API_BASE}/refresh", headers=headers)
             resp.raise_for_status()
             total = resp.json().get("total_configs", 0)
         await callback.message.edit_text(f"✅ Кэш обновлён: {total} конфигов", reply_markup=admin_keyboard())
-    except Exception:
+    except Exception as exc:
+        logger.warning("admin refresh failed: %r", exc)
         await callback.message.edit_text("❌ Ошибка обновления", reply_markup=admin_keyboard())
 
 
 async def send_sub_callback(callback: CallbackQuery, network: str, label: str):
     await callback.message.edit_text(f"⏳ Загружаю {label}...")
-    path = f"/sub/{network}"
-    data = await api_get(path)
+    # format=uri: without it the API sniffs the httpx User-Agent and answers base64,
+    # so the old code always counted 0 configs (and ignored vmess/trojan/hy2/tuic).
+    data = await api_get(f"/sub/{network}?format=uri")
     if not data:
         await callback.message.edit_text("❌ Ошибка", reply_markup=main_keyboard())
         return
-    lines = [ln for ln in str(data).splitlines() if ln.startswith(("vless://", "ss://"))]
+    lines = [ln for ln in str(data).splitlines() if ln.startswith(LINK_SCHEMES)]
     sub_url = sub_url_for(network)
     text = (
         f"{label} <b>Подписка</b> ({len(lines)} конфигов)\n\n"
