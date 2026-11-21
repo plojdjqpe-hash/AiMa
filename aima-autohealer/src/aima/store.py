@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
@@ -93,7 +94,11 @@ class Store:
 
     def __init__(self, db_path: str | Path = "aima.db") -> None:
         self.db_path = Path(db_path)
-        self._conn = sqlite3.connect(self.db_path, isolation_level=None)
+        # The store is shared by FastAPI handlers, the scheduler and (when embedded) the
+        # host app, which may run in different threads; sqlite3 refuses cross-thread use by
+        # default, so allow it and serialise access with a lock instead.
+        self._lock = threading.RLock()
+        self._conn = sqlite3.connect(self.db_path, isolation_level=None, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
 
@@ -102,11 +107,12 @@ class Store:
 
     @contextmanager
     def cursor(self) -> Iterator[sqlite3.Cursor]:
-        cur = self._conn.cursor()
-        try:
-            yield cur
-        finally:
-            cur.close()
+        with self._lock:
+            cur = self._conn.cursor()
+            try:
+                yield cur
+            finally:
+                cur.close()
 
     def upsert_profile(self, p: ProbeProfile) -> None:
         with self.cursor() as cur:

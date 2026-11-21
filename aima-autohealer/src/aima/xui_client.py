@@ -22,6 +22,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
+from urllib.parse import quote
 
 import httpx
 
@@ -179,4 +180,5 @@ class XUIClient:
         return result if isinstance(result, dict) else {}
 
     async def del_client(self, inbound_id: int, email: str) -> None:
-        await self._post(f"/panel/api/inbounds/{inbound_id}/delClient/{email}")
+        # the email is user data: "/", "?" or "#" in it would otherwise change the URL path
+        await self._post(f"/panel/api/inbounds/{int(inbound_id)}/delClient/{quote(email, safe='')}")

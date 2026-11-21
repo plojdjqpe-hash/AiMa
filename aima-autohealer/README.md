@@ -45,6 +45,17 @@ uv run aima serve --port 8765   # FastAPI on :8765 with 24/7 scheduler
 uv run pytest                # full test suite (no network needed)
 ```
 
+### API access token
+
+Set `AIMA_API_TOKEN` before running `aima serve` or attaching to XSERVIS. Every
+endpoint except `/health` then needs `Authorization: Bearer <token>` (or
+`X-API-Key: <token>`). Without a token the API is read-only: `PUT /profiles`,
+`POST /probe/report(s)` and `POST /detect/run` answer 503, because an open
+`PUT /profiles` lets anyone make the server probe arbitrary hosts and fake
+reports can poison incident detection. `AIMA_API_ALLOW_UNAUTH_WRITES=1` restores
+the old open behaviour for a trusted private network only. External vantage
+points must send the token with their reports.
+
 ## How `aima demo` works
 
 It seeds 45 minutes of synthetic probe reports across 5 vantages

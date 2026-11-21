@@ -44,13 +44,17 @@ if [ -z "$SERVER_DOMAIN" ]; then
 fi
 
 API_PORT=${API_PORT:-8000}
-WEBAPP_URL="http://${SERVER_DOMAIN}:${API_PORT}/app"
+PUBLIC_URL=${PUBLIC_URL:-"http://${SERVER_DOMAIN}:${API_PORT}"}
+# Telegram opens Mini Apps only over https://. Without TLS the bot simply hides the WebApp button.
+WEBAPP_URL=${WEBAPP_URL:-"${PUBLIC_URL}/app"}
+REFRESH_TOKEN=${REFRESH_TOKEN:-$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')}
 
 echo ""
 echo -e "${GREEN}Settings:${NC}"
 echo "  Install dir:  $INSTALL_DIR"
 echo "  API:          http://${SERVER_DOMAIN}:${API_PORT}"
 echo "  WebApp:       ${WEBAPP_URL}"
+case "$WEBAPP_URL" in https://*) ;; *) echo -e "  ${YELLOW}WebApp is not https:// — Telegram will not open it; the bot hides the button.${NC}";; esac
 echo "  Admin IDs:    ${ADMIN_IDS}"
 echo ""
 read -p "Continue? [Y/n] " confirm
@@ -94,8 +98,10 @@ echo -e "${CYAN}[5/6] Configuring services...${NC}"
 cat > "$INSTALL_DIR/.env" << EOF
 TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
 PROXY_SUB_API=http://127.0.0.1:${API_PORT}
+PUBLIC_URL=${PUBLIC_URL}
 WEBAPP_URL=${WEBAPP_URL}
 ADMIN_IDS=${ADMIN_IDS}
+REFRESH_TOKEN=${REFRESH_TOKEN}
 EOF
 chmod 600 "$INSTALL_DIR/.env"
 chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/.env"

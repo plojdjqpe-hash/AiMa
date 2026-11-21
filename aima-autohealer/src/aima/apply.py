@@ -168,7 +168,7 @@ async def apply_incident(
             changed, notes = await _apply_one(xui, inbound_id, recipe_id, ctx, cfg=cfg)
         except Exception as exc:  # noqa: BLE001 — we intentionally catch broadly
             logger.exception("recipe %s raised", recipe_id)
-            await _safe_restore(xui, snap, snap_store)
+            await _safe_restore(xui, snap, snap_store, inbound_id)
             result.rolled_back = True
             result.notes = f"{recipe_id}: raised {type(exc).__name__}: {exc}"
             store.record_recipe_outcome(
@@ -212,6 +212,8 @@ async def apply_incident(
                 success=False,
                 note=f"verify inconclusive ({n} samples)",
             )
+            # undo this recipe before trying the next one, so recipes are tested one at a time
+            await _safe_restore(xui, snap, snap_store, inbound_id)
             continue
 
         result.final_failure_rate = fail_rate
@@ -229,17 +231,28 @@ async def apply_incident(
                 f"kept {recipe_id}: failure_rate {base_failure:.2f} → {fail_rate:.2f}"
             )
             return result
+        # Not good enough: revert before the next recipe. Previously the mutations piled up,
+        # so a later "kept" recipe silently also kept every failed change before it.
+        await _safe_restore(xui, snap, snap_store, inbound_id)
 
     # exhausted — roll back
-    await _safe_restore(xui, snap, snap_store)
+    await _safe_restore(xui, snap, snap_store, inbound_id)
     result.rolled_back = True
     result.notes = f"all {len(recipes)} recipes exhausted, rolled back to {snap.snapshot_id}"
     return result
 
 
-async def _safe_restore(xui: XUIClient, snap: Snapshot, store: SnapshotStore) -> None:
+async def _safe_restore(
+    xui: XUIClient, snap: Snapshot, store: SnapshotStore, inbound_id: int | None = None
+) -> None:
+    """Restore the snapshot (only the healed inbound when ``inbound_id`` is given)."""
     try:
-        n = await restore_snapshot(xui, snap.snapshot_id, store=store)
+        n = await restore_snapshot(
+            xui,
+            snap.snapshot_id,
+            store=store,
+            inbound_ids=None if inbound_id is None else {inbound_id},
+        )
         logger.info("rollback restored %d inbounds from %s", n, snap.snapshot_id)
     except Exception:
         logger.exception("CRITICAL: rollback failed for %s", snap.snapshot_id)

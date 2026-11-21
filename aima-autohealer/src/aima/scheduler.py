@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
 
 from .detector import detect_incidents
 from .probe import Vantage, run_batch
